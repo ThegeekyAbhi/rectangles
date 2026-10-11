@@ -1,0 +1,17 @@
+node_modules
+.turbo
+.next
+out
+dist
+coverage
+.env*
+!.env.example
+.DS_Store
+*.tsbuildinfo
+*.pem
+.vercel
+npm-debug.log*
+.pnpm-debug.log*
+PRD.md
+MilestoneBased.md
+
