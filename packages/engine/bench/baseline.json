@@ -1,0 +1,23 @@
+{
+  "machine": "Apple M2, darwin arm64",
+  "node": "v24.15.0",
+  "minEventsPerSecond": 500000,
+  "results": [
+    {
+      "scenario": "steady: 1,000 requests/s for 60 s",
+      "stopReason": "completed",
+      "eventsPerRun": 239778,
+      "meanRunMs": 104.43,
+      "eventsPerSecond": 2296144,
+      "runs": 64
+    },
+    {
+      "scenario": "saturated: 8,000 requests/s for 60 s",
+      "stopReason": "completed",
+      "eventsPerRun": 1738021,
+      "meanRunMs": 838.18,
+      "eventsPerSecond": 2073570,
+      "runs": 64
+    }
+  ]
+}

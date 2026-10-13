@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "run": { "durationSeconds": 60, "seed": 1 },
+  "nodes": [
+    {
+      "id": "client",
+      "type": "client",
+      "config": { "pattern": "steady", "ratePerSecond": 1000, "timeoutMs": 5000 }
+    },
+    {
+      "id": "api",
+      "type": "api-server",
+      "config": { "instances": 2, "concurrency": 50, "serviceTimeMs": 20, "queueLimit": 100 }
+    }
+  ],
+  "edges": [
+    {
+      "id": "client-to-api",
+      "from": { "node": "client", "port": "out" },
+      "to": { "node": "api", "port": "in" }
+    }
+  ]
+}

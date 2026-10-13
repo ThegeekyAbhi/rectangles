@@ -5,13 +5,17 @@
     "dev": "turbo run dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:watch": "turbo run test:watch",
+    "sim": "node packages/engine/cli/main.ts",
+    "bench": "pnpm --filter @rectangles/engine bench"
   },
   "devDependencies": {
     "turbo": "^2.11.7"
   },
   "packageManager": "pnpm@10.33.2",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.18"
   }
 }

@@ -1,0 +1,103 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`determinism > matches the recorded results of a reference run 1`] = `
+{
+  "eventsProcessed": 37523,
+  "summary": {
+    "errorRate": 0.24014729299363058,
+    "failed": 0,
+    "inFlight": 128,
+    "latencyMs": {
+      "count": 7507,
+      "max": 225.118,
+      "mean": 82.55836099640345,
+      "p50": 78.831,
+      "p95": 124.286,
+      "p99": 154.453,
+    },
+    "offered": 10048,
+    "offeredPerSecond": 2009.6,
+    "rejected": 2413,
+    "succeeded": 7507,
+    "throughputPerSecond": 1501.4,
+    "timedOut": 0,
+    "windows": [
+      {
+        "failed": 0,
+        "latencyMs": {
+          "count": 1548,
+          "max": 189.348,
+          "mean": 72.44054134366928,
+          "p50": 71.198,
+          "p95": 114.637,
+          "p99": 146.285,
+        },
+        "offered": 2025,
+        "rejected": 350,
+        "succeeded": 1548,
+        "timedOut": 0,
+      },
+      {
+        "failed": 0,
+        "latencyMs": {
+          "count": 1519,
+          "max": 201.223,
+          "mean": 82.72850559578679,
+          "p50": 78.358,
+          "p95": 122.879,
+          "p99": 154.051,
+        },
+        "offered": 1972,
+        "rejected": 450,
+        "succeeded": 1519,
+        "timedOut": 0,
+      },
+      {
+        "failed": 0,
+        "latencyMs": {
+          "count": 1439,
+          "max": 225.118,
+          "mean": 88.98264002779706,
+          "p50": 84.238,
+          "p95": 133.374,
+          "p99": 162.997,
+        },
+        "offered": 2000,
+        "rejected": 573,
+        "succeeded": 1439,
+        "timedOut": 0,
+      },
+      {
+        "failed": 0,
+        "latencyMs": {
+          "count": 1489,
+          "max": 198.942,
+          "mean": 84.28379583613167,
+          "p50": 79.722,
+          "p95": 123.375,
+          "p99": 161.391,
+        },
+        "offered": 2057,
+        "rejected": 556,
+        "succeeded": 1489,
+        "timedOut": 0,
+      },
+      {
+        "failed": 0,
+        "latencyMs": {
+          "count": 1512,
+          "max": 210.434,
+          "mean": 84.93284854497351,
+          "p50": 80.099,
+          "p95": 124.993,
+          "p99": 153.245,
+        },
+        "offered": 1994,
+        "rejected": 484,
+        "succeeded": 1512,
+        "timedOut": 0,
+      },
+    ],
+  },
+}
+`;

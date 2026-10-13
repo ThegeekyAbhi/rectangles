@@ -1,6 +1,6 @@
 # Rectangles
 
-Interactive system-design simulator. Product spec: [PRD.md](PRD.md). Build plan: [MilestoneBased.md](MilestoneBased.md).
+Interactive system-design simulator. Product spec: [PRD.md](PRD.md). Build plan: [MilestoneBased.md](MilestoneBased.md). How the engine simulates, and its kernel backlog: [simulation-algorithm.md](simulation-algorithm.md).
 
 Next.js 16 has breaking changes versus older versions — read `apps/web/AGENTS.md` before writing web code.
 
@@ -13,6 +13,9 @@ pnpm dev         # all apps
 pnpm build
 pnpm lint
 pnpm typecheck
+pnpm test        # Vitest, per package
+pnpm sim <design.json> --seed 1   # run a design through the engine, print metrics
+pnpm bench       # engine benchmark; fails below 500k events/s
 ```
 
 ## Repo layout
@@ -23,7 +26,7 @@ apps/
   api/          Fastify server (auth, projects)            — planned
 packages/
   schema/       Zod schemas for the architecture document  — planned
-  engine/       Simulation engine, zero runtime deps       — planned
+  engine/       Simulation engine, zero runtime deps
   rules/        Connection + graph validation              — planned
 ```
 
@@ -51,6 +54,7 @@ modules/
     hooks/              Hooks owned by this module
     store/              Zustand slices
     api/                Server calls (React Query hooks, fetchers)
+    worker/             Web Worker entry, its typed API, and the client that talks to it
     lib/                Pure helpers
     types.ts
     index.ts            Public API — the only file other code may import
@@ -61,7 +65,9 @@ hooks/                  Hooks used by 2+ modules
 lib/                    Utilities used by 2+ modules
 ```
 
-Planned modules: `auth`, `projects`, `whiteboard`, `inspector`, `validation`, `simulation`, `metrics`, `experiments`.
+Modules: `projects`, `whiteboard`, `inspector`, `simulation`, `metrics`. Planned: `auth`, `validation`, `experiments`.
+
+`whiteboard` imports no other feature module. What they add to the board (inspector, run controls, results panel, canvas overlays) is passed in as slots by `app/projects/[projectId]/project-workspace.tsx`.
 
 A module only creates the subfolders it needs. A module with three files does not need five folders.
 
@@ -83,23 +89,34 @@ server.ts               Starts it
 
 Layering inside a module: `routes → service → repository`. Never skip a layer or go backwards.
 
-### 4. Engine — `packages/engine/src`
+### 4. Engine — `packages/engine`
 
 ```
-kernel/                 Event loop, clock, PRNG, Context — knows no component by name
-components/
-  <component>/
-    definition.ts       Type, config schema, ports, declared metrics, "not modeled" list
-    behaviour.ts        Event handlers
-    *.test.ts
-registry.ts             One line per component
-metrics/
-index.ts
+src/
+  contract/               What a component author sees: Context, ComponentDefinition, config
+                          field specs, ports, metrics, time units. Imports nothing else
+  kernel/                 Event loop, event queue, PRNG, design graph — knows no component by name
+  metrics/                Recording in 1 s windows, run result, run summary, live run snapshot
+  components/
+    <component>/
+      definition.ts       Type, config field specs, ports, declared metrics, "not modeled" list
+      behaviour.ts        Event handlers; exports the component via defineComponent
+  registry.ts             One line per component
+  index.ts
+tests/                    Mirrors src/: tests/kernel/event-queue.test.ts tests src/kernel/event-queue.ts
+  support/                Stub components, queueing formulas, shared assertions
+  registry.test.ts        Conformance suite, run against every registered component
+cli/                      `pnpm sim` (Node APIs live here, never in src/)
+bench/                    `pnpm bench`
 ```
 
-- No React, DOM, or Node-only APIs. No runtime dependencies.
-- Components never import `kernel/` internals or each other; they receive a `Context`.
+- No React, DOM, or Node-only APIs in `src/`. No runtime dependencies. `tsconfig.src.json` and ESLint enforce both.
+- Components import only `contract/` and their own folder; they receive a `Context`. Enforced by `eslint-plugin-boundaries`.
 - No `if (type === "...")` in the kernel. Adding a component means adding a folder and one registry line.
+- Deterministic: no `Math.random`, `Date` or `performance` in `src/`; use `context.prng` and `context.nowMicros`.
+- Config is declared as plain field specs (`as const satisfies ConfigFields`), not Zod. The engine validates them itself.
+- Imports use explicit `.ts` extensions and `import type`; no enums or parameter properties. Node runs the source directly.
+- Naming: time values are integer microseconds and end in `Micros`; user-facing config carries its unit (`serviceTimeMs`). String ids are kebab-case; metric ids are `<subject>.<measure>`. No abbreviations (`request`, `context`, not `req`, `ctx`). British spelling (`behaviour`, `utilisation`).
 
 ### 5. Rules — `packages/rules/src`
 
@@ -124,7 +141,7 @@ Connection validity is derived from port declarations, never hand-written per co
 ### 7. Naming and files
 
 - Files and folders: `kebab-case`. Components: `PascalCase` export, one main component per file.
-- Hooks: `use-<thing>.ts`. Stores: `<thing>-store.ts`. Tests: `<file>.test.ts` next to the file they test.
+- Hooks: `use-<thing>.ts`. Stores: `<thing>-store.ts`. Tests: `<file>.test.ts` in a `tests/` folder beside `src/`, at the same relative path as the file they test (`src/kernel/prng.ts` → `tests/kernel/prng.test.ts`). Shared test helpers go in `tests/support/`.
 - No barrel files except a module's or package's `index.ts`.
 - No `utils.ts` dumping grounds inside modules; name the file after what it does.
 - Web imports use the `@/` alias; no `../../..` across module boundaries.
@@ -141,3 +158,5 @@ Connection validity is derived from port declarations, never hand-written per co
 - TypeScript strict. No `any` without a comment explaining why.
 - Icons: `@phosphor-icons/react` (`/ssr` entry in server components). Not lucide.
 - UI primitives come from shadcn (`pnpm dlx shadcn@latest add <name>` in `apps/web`).
+- Colours come from the tokens in `apps/web/src/app/globals.css`, used through Tailwind classes (`bg-card`, `text-muted-foreground`, `border`). No hex, `rgb()` or raw colour in components, and no per-component `dark:` colour overrides: the dark theme redefines the same tokens. To change a shade, edit its OKLCH lightness there, then run `tests/app/theme-contrast.test.ts`.
+- Surfaces, back to front: `sidebar` (header, side panels), `background` (canvas, results), `card` (nodes, tiles), `popover`. Hue is reserved for load state (`state-healthy`, `state-busy`, `state-saturated`).

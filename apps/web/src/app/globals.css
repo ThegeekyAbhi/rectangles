@@ -2,7 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
   --color-background: var(--background);
@@ -18,6 +18,10 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
+  --color-node-border: var(--node-border);
+  --color-state-healthy: var(--state-healthy);
+  --color-state-busy: var(--state-busy);
+  --color-state-saturated: var(--state-saturated);
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
@@ -48,73 +52,111 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/*
+ * Colour tokens. Every colour in the app comes from here; components never hold a
+ * colour of their own, so a theme is changed in this file and nowhere else.
+ *
+ * Two tiers:
+ *   1. Inputs: the tint shared by every neutral (`--base-hue`, `--base-chroma`).
+ *   2. Roles: what a colour is for (`--background`, `--card`, `--border`, ...). These
+ *      are the names components use, through Tailwind classes such as `bg-card`.
+ *
+ * Colours are written in OKLCH, where the first number is perceived lightness from 0
+ * (black) to 1 (white). To make a surface lighter or darker, change that number only.
+ * The dark theme redefines the same roles; it adds no new names.
+ *
+ * Text contrast is checked by tests/app/theme-contrast.test.ts. Run it after any change.
+ */
 :root {
+  color-scheme: light;
+
+  /* Inputs: a faint cool tint. Set the chroma to 0 for pure greys. */
+  --base-hue: 265;
+  --base-chroma: 0.004;
+
+  /* Surfaces, from the back of the app to the front. */
+  --sidebar: oklch(0.985 var(--base-chroma) var(--base-hue));
   --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  /* Hover and selected rows, and quiet fills. */
+  --muted: oklch(0.97 var(--base-chroma) var(--base-hue));
+  --accent: oklch(0.97 var(--base-chroma) var(--base-hue));
+  --secondary: oklch(0.97 var(--base-chroma) var(--base-hue));
+
+  /* Text. */
+  --foreground: oklch(0.145 var(--base-chroma) var(--base-hue));
+  --muted-foreground: oklch(0.52 var(--base-chroma) var(--base-hue));
+  --card-foreground: var(--foreground);
+  --popover-foreground: var(--foreground);
+  --accent-foreground: oklch(0.205 var(--base-chroma) var(--base-hue));
+  --secondary-foreground: oklch(0.205 var(--base-chroma) var(--base-hue));
+  --sidebar-foreground: var(--foreground);
+
+  /* The main action. There is no accent colour: it is the text colour, inverted. */
+  --primary: oklch(0.205 var(--base-chroma) var(--base-hue));
+  --primary-foreground: oklch(0.985 var(--base-chroma) var(--base-hue));
+
+  /* Lines and focus. */
+  --border: oklch(0.922 var(--base-chroma) var(--base-hue));
+  --input: oklch(0.922 var(--base-chroma) var(--base-hue));
+  --ring: oklch(0.708 var(--base-chroma) var(--base-hue));
+  /* The outline of things drawn on the canvas, which must stand out from it. */
+  --node-border: var(--border);
+
+  /* The only hues in the app: how loaded a component is during a run, and errors. */
+  --state-healthy: oklch(0.55 0.14 155);
+  --state-busy: oklch(0.62 0.15 65);
+  --state-saturated: oklch(0.577 0.245 27.325);
+  --destructive: var(--state-saturated);
+
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: var(--accent-foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
 }
 
+/*
+ * Dark: near-black surfaces that get lighter as they come forward, with hairline
+ * borders. Each step up is about 0.03 of lightness, enough to see and no more.
+ */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  color-scheme: dark;
+
+  --sidebar: oklch(0.155 var(--base-chroma) var(--base-hue));
+  --background: oklch(0.185 var(--base-chroma) var(--base-hue));
+  --card: oklch(0.215 var(--base-chroma) var(--base-hue));
+  --popover: oklch(0.235 var(--base-chroma) var(--base-hue));
+  --muted: oklch(0.255 var(--base-chroma) var(--base-hue));
+  --accent: oklch(0.255 var(--base-chroma) var(--base-hue));
+  --secondary: oklch(0.255 var(--base-chroma) var(--base-hue));
+
+  --foreground: oklch(0.96 var(--base-chroma) var(--base-hue));
+  --muted-foreground: oklch(0.69 var(--base-chroma) var(--base-hue));
+  --accent-foreground: var(--foreground);
+  --secondary-foreground: var(--foreground);
+
+  --primary: oklch(0.93 var(--base-chroma) var(--base-hue));
+  --primary-foreground: oklch(0.2 var(--base-chroma) var(--base-hue));
+
+  /* Translucent white, so a line reads the same on every surface. */
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.556 var(--base-chroma) var(--base-hue));
+  --node-border: oklch(1 0 0 / 18%);
+
+  --state-healthy: oklch(0.74 0.16 155);
+  --state-busy: oklch(0.8 0.15 80);
+  --state-saturated: oklch(0.704 0.191 22.216);
 }
 
 @layer base {
@@ -127,4 +169,77 @@
   html {
     @apply font-sans;
   }
+}
+/* The board (React Flow) takes its colours from the design tokens above. */
+.react-flow {
+  --xy-background-color: var(--background);
+  --xy-background-pattern-color: color-mix(in oklch, var(--foreground) 14%, transparent);
+  --xy-edge-stroke: color-mix(in oklch, var(--foreground) 45%, transparent);
+  --xy-edge-stroke-selected: var(--foreground);
+  --xy-edge-stroke-width: 1.5;
+  --xy-connectionline-stroke: var(--foreground);
+  --xy-connectionline-stroke-width: 1.5;
+  --xy-handle-background-color: var(--background);
+  --xy-handle-border-color: color-mix(in oklch, var(--foreground) 55%, transparent);
+  --xy-selection-background-color: color-mix(in oklch, var(--foreground) 6%, transparent);
+  --xy-selection-border: 1px solid color-mix(in oklch, var(--foreground) 35%, transparent);
+  --xy-minimap-background-color: var(--card);
+  --xy-minimap-mask-background-color: color-mix(in oklch, var(--muted) 70%, transparent);
+  --xy-minimap-node-background-color: color-mix(in oklch, var(--foreground) 18%, transparent);
+  --xy-attribution-background-color: transparent;
+}
+
+.react-flow .react-flow__handle {
+  width: 10px;
+  height: 10px;
+  border-width: 1.5px;
+  transition:
+    transform 150ms,
+    border-color 150ms;
+}
+
+/* Ports grow while a connection is being drawn and when pointed at, so they are easy to hit. */
+.react-flow .react-flow__handle:hover,
+.react-flow .react-flow__handle.connectingto,
+.react-flow .react-flow__handle.valid {
+  transform: translate(var(--handle-shift-x, 0), -50%) scale(1.4);
+  border-color: var(--foreground);
+}
+
+.react-flow__handle-left {
+  --handle-shift-x: -50%;
+}
+
+.react-flow__handle-right {
+  --handle-shift-x: 50%;
+}
+
+.react-flow__node:focus-visible,
+.react-flow__edge:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+  border-radius: var(--radius-lg);
+}
+
+/* The library's credit: kept, as its makers ask, but out of the way. */
+.react-flow .react-flow__attribution {
+  padding: 2px 6px;
+  font-size: 10px;
+  opacity: 0.45;
+  transition: opacity 150ms;
+}
+
+.react-flow .react-flow__attribution:hover,
+.react-flow .react-flow__attribution:focus-within {
+  opacity: 1;
+}
+
+.react-flow .react-flow__attribution a {
+  color: var(--muted-foreground);
+}
+
+.react-flow .react-flow__minimap {
+  border: 1px solid var(--node-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
 }
