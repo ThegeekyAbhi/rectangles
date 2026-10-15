@@ -7,6 +7,7 @@ import {
   CopyIcon,
   CircleHalfIcon,
   CornersOutIcon,
+  FileCodeIcon,
   MapTrifoldIcon,
   SelectionAllIcon,
   SidebarSimpleIcon,
@@ -16,6 +17,7 @@ import {
 import { useReactFlow } from "@xyflow/react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
+import { toast } from "sonner";
 import {
   Command,
   CommandDialog,
@@ -30,6 +32,7 @@ import { THEMES } from "@/components/theme-toggle";
 import { useAddComponent } from "../hooks/use-add-component";
 import { useBoardPanels } from "../hooks/use-board-panels";
 import { listComponentDefinitions } from "../lib/component-catalog";
+import { elementsToDocument } from "../lib/document-conversion";
 import { ANIMATED_FIT_VIEW_OPTIONS } from "../lib/viewport";
 import { useCanvasViewStore } from "../store/canvas-view-store";
 import { useWhiteboardStoreApi } from "../store/whiteboard-store-context";
@@ -55,6 +58,16 @@ export function CommandPalette({
   const run = (action: () => void) => () => {
     onOpenChange(false);
     action();
+  };
+
+  /** The board as a saved document, for pasting into a lesson as a read-only diagram. */
+  const copyDiagramJson = () => {
+    const { nodes, edges } = store.getState();
+    const json = JSON.stringify(elementsToDocument(nodes, edges), null, 2);
+    navigator.clipboard.writeText(json).then(
+      () => toast.success("Copied the board as diagram JSON"),
+      () => toast.error("Couldn't copy to the clipboard"),
+    );
   };
 
   return (
@@ -106,6 +119,10 @@ export function CommandPalette({
               <TrashIcon aria-hidden />
               Delete selection
               <CommandShortcut>⌫</CommandShortcut>
+            </CommandItem>
+            <CommandItem onSelect={run(copyDiagramJson)}>
+              <FileCodeIcon aria-hidden />
+              Copy as diagram JSON
             </CommandItem>
           </CommandGroup>
           <CommandGroup heading="View">

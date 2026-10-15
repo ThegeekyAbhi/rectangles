@@ -1,6 +1,7 @@
+import type { ConfigFields, ConfigOf } from "./config-field.ts";
 import type { MetricHandle } from "./metric.ts";
 import type { PortHandle } from "./port.ts";
-import type { Call, Outcome, Request } from "./request.ts";
+import type { Call, Operation, Outcome, Request } from "./request.ts";
 import type { Micros } from "./time-units.ts";
 
 /** A deterministic random stream. Each node has its own, derived from the run seed. */
@@ -21,6 +22,12 @@ export interface SetupContext<Config> {
   metric(metricId: string): MetricHandle;
   /** Resolves a declared port id. Throws if the component did not declare it. */
   port(portId: string): PortHandle;
+  /**
+   * The settings of each connection leaving an out port, in target order, so its length
+   * is the port's target count. Pass the port's own `connectionFields`, which types the
+   * result; anything else throws.
+   */
+  connections<Fields extends ConfigFields>(port: PortHandle, fields: Fields): readonly ConfigOf<Fields>[];
 }
 
 /**
@@ -47,7 +54,8 @@ export interface Context<Config, State> {
   /** Cancels a timer. Does nothing if it has already fired. */
   cancel(timer: TimerHandle): void;
 
-  createRequest(attempt: number): Request;
+  /** Starts a new request. Without an operation and key, it reads key 0. */
+  createRequest(attempt: number, operation?: Operation, key?: number): Request;
   /** Number of nodes connected to one of this node's out ports. */
   targetCount(port: PortHandle): number;
   /**

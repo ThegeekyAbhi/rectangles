@@ -27,6 +27,8 @@ export interface ChoiceField extends ConfigFieldBase {
   readonly kind: "choice";
   readonly options: readonly string[];
   readonly default: string;
+  /** One line per option saying what it does and when it matters, shown once it is picked. */
+  readonly optionDescriptions?: Readonly<Record<string, string>>;
 }
 
 export type ConfigField = NumberField | ChoiceField;

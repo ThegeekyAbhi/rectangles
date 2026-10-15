@@ -3,7 +3,9 @@
 import { ArrowRightIcon, TrashIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import type { ConnectionEdge } from "@/modules/whiteboard";
-import { useWhiteboardStore } from "@/modules/whiteboard";
+import { findConnectionFields, useWhiteboardStore } from "@/modules/whiteboard";
+import { isFieldRelevant } from "../lib/parse-field-input";
+import { ConfigFieldInput } from "./config-field-input";
 
 function EdgeEnd({ title, nodeLabel, port }: { title: string; nodeLabel: string; port: string }) {
   return (
@@ -22,7 +24,14 @@ export function EdgeInspector({ edge }: { edge: ConnectionEdge }) {
   const targetLabel = useWhiteboardStore(
     (state) => state.nodes.find((node) => node.id === edge.target)?.data.label,
   );
+  const sourceType = useWhiteboardStore(
+    (state) => state.nodes.find((node) => node.id === edge.source)?.data.componentType,
+  );
+  const setEdgeConfig = useWhiteboardStore((state) => state.setEdgeConfig);
   const deleteElements = useWhiteboardStore((state) => state.deleteElements);
+  const fields = findConnectionFields(sourceType ?? "", edge.sourceHandle ?? "");
+  const config = edge.data?.config ?? {};
+  const settingsId = `${edge.id}-settings`;
 
   return (
     <div className="flex flex-col gap-4 p-4">
@@ -32,6 +41,25 @@ export function EdgeInspector({ edge }: { edge: ConnectionEdge }) {
         <ArrowRightIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
         <EdgeEnd title="To" nodeLabel={targetLabel ?? "Missing"} port={edge.targetHandle ?? ""} />
       </div>
+      {Object.keys(fields).length > 0 && (
+        <section aria-labelledby={settingsId} className="@container flex flex-col gap-3">
+          <h3 id={settingsId} className="mb-0.5 text-xs font-medium text-muted-foreground">
+            Settings
+          </h3>
+          {Object.entries(fields)
+            .filter(([fieldName]) => isFieldRelevant(fields, config, fieldName))
+            .map(([fieldName, field]) => (
+              <ConfigFieldInput
+                key={fieldName}
+                fieldName={fieldName}
+                field={field}
+                fields={fields}
+                config={config}
+                onCommit={(value) => setEdgeConfig(edge.id, { ...config, [fieldName]: value })}
+              />
+            ))}
+        </section>
+      )}
       <Button variant="outline" size="sm" className="self-start" onClick={() => deleteElements([], [edge.id])}>
         <TrashIcon aria-hidden />
         Delete connection

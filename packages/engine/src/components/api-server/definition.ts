@@ -48,10 +48,24 @@ export const apiServerConfigFields = {
 
 export type ApiServerConfig = ConfigOf<typeof apiServerConfigFields>;
 
+/** Settings on each connection from an API server to a database. */
+export const apiServerDatabaseConnectionFields = {
+  queriesPerRequest: {
+    kind: "integer",
+    label: "Queries per request",
+    description:
+      "Queries one request runs against this database, one after another. Fetching a list, then each item, is the N+1 pattern.",
+    default: 1,
+    min: 1,
+    max: 100,
+  },
+} as const satisfies ConfigFields;
+
 export const apiServerDefinition: ComponentDefinition<typeof apiServerConfigFields> = {
   type: "api-server",
   label: "API server",
   description: "Handles requests with a fixed number of slots and a bounded waiting queue.",
+  category: "compute",
   configFields: apiServerConfigFields,
   summarise(config) {
     const slots = `${formatCompactNumber(config.instances)} × ${formatCompactNumber(config.concurrency)} slots`;
@@ -68,6 +82,14 @@ export const apiServerDefinition: ComponentDefinition<typeof apiServerConfigFiel
       direction: "in",
       protocol: "sync-request",
       description: "Requests to handle.",
+    },
+    {
+      id: "database",
+      direction: "out",
+      protocol: "database-query",
+      description:
+        "Queries made while handling a request, after its service time. The slot stays busy until every query is answered.",
+      connectionFields: apiServerDatabaseConnectionFields,
     },
   ],
   metrics: [
@@ -101,6 +123,18 @@ export const apiServerDefinition: ComponentDefinition<typeof apiServerConfigFiel
       unit: "requests",
       definition: "Requests refused because the queue was full.",
     },
+    {
+      id: "requests.failed",
+      kind: "counter",
+      unit: "requests",
+      definition: "Requests that failed because a database refused or failed one of their queries.",
+    },
+    {
+      id: "database.wait",
+      kind: "sample",
+      unit: "ms",
+      definition: "Time a request spent waiting on its database queries while holding its slot.",
+    },
   ],
   notModeled: [
     "CPU, memory and garbage-collection pauses.",
@@ -108,5 +142,7 @@ export const apiServerDefinition: ComponentDefinition<typeof apiServerConfigFiel
     "Uneven load between instances: all instances share one queue.",
     "Autoscaling, cold starts and deployments.",
     "Cancelling work after the caller has timed out.",
+    "Queries in parallel: a request's queries run one after another, all for the request's own key.",
+    "A connection pool inside each instance: the database's own connection limit applies.",
   ],
 };

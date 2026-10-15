@@ -28,6 +28,7 @@ export const stubSourceComponent = defineComponent({
   definition: {
     type: "stub-source",
     label: "Stub source",
+    category: "traffic",
     description: "Sends calls at a fixed interval.",
     configFields,
     summarise: (config) => `every ${config.intervalMs} ms`,

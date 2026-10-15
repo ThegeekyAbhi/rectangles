@@ -178,3 +178,63 @@ describe("component mistakes", () => {
     }).toThrow(/zero or more/);
   });
 });
+
+describe("connection settings", () => {
+  const weightFields = {
+    weight: { kind: "integer", label: "Weight", description: "Share.", default: 1, min: 1, max: 10 },
+  } as const;
+
+  function routerComponent(askWith: typeof weightFields) {
+    return defineComponent({
+      definition: {
+        type: "router",
+        label: "Router",
+        description: "Reads its connections' settings.",
+        category: "traffic",
+        configFields: {},
+        summarise: () => "router",
+        ports: [
+          { id: "out", direction: "out", protocol: "sync-request", description: "Targets.", connectionFields: weightFields },
+        ],
+        metrics: [{ id: "weight.total", kind: "gauge", unit: "weight", definition: "Sum of weights." }],
+        notModeled: [],
+      },
+      behaviour: {
+        init(setup) {
+          const weights = setup.connections(setup.port("out"), askWith).map((connection) => connection.weight);
+          return { total: setup.metric("weight.total"), sum: weights.reduce((sum, weight) => sum + weight, 0) };
+        },
+        onStart(context) {
+          context.setGauge(context.state.total, context.state.sum);
+        },
+      },
+    });
+  }
+
+  function designWithWeights(weights: readonly (number | undefined)[]): SimulationDesign {
+    return {
+      schemaVersion: 1,
+      run: { durationSeconds: 1, seed: 1 },
+      nodes: [{ id: "router", type: "router" }, ...weights.map((_weight, index) => ({ id: `sink-${index}`, type: "stub-sink" }))],
+      edges: weights.map((weight, index) => ({
+        id: `e${index}`,
+        from: { node: "router", port: "out" },
+        to: { node: `sink-${index}`, port: "in" },
+        config: weight === undefined ? {} : { weight },
+      })),
+    };
+  }
+
+  it("hands a component each connection's validated settings, in target order", () => {
+    const routerRegistry = createRegistry([routerComponent(weightFields), stubSinkComponent]);
+    const result = runSimulation(designWithWeights([3, undefined, 5]), { registry: routerRegistry });
+    const total = result.nodes[0]?.metrics.find((metric) => metric.id === "weight.total");
+    expect(total).toMatchObject({ kind: "gauge", max: 9 });
+  });
+
+  it("refuses fields the port does not declare", () => {
+    const lookalike = { weight: { ...weightFields.weight } } as const;
+    const routerRegistry = createRegistry([routerComponent(lookalike), stubSinkComponent]);
+    expect(() => runSimulation(designWithWeights([1]), { registry: routerRegistry })).toThrow(/does not declare/);
+  });
+});

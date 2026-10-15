@@ -1,0 +1,358 @@
+{
+  "schemaVersion": 2,
+  "nodes": [
+    {
+      "id": "clients",
+      "type": "client",
+      "label": "Clients",
+      "position": {
+        "x": 0,
+        "y": 272
+      },
+      "config": {
+        "pattern": "steady",
+        "ratePerSecond": 2000
+      }
+    },
+    {
+      "id": "lb",
+      "type": "load-balancer",
+      "label": "Load balancer",
+      "position": {
+        "x": 224,
+        "y": 272
+      },
+      "config": {}
+    },
+    {
+      "id": "api-1",
+      "type": "api-server",
+      "label": "API server 1",
+      "position": {
+        "x": 448,
+        "y": 96
+      },
+      "config": {
+        "instances": 2,
+        "concurrency": 50,
+        "serviceTimeMs": 20
+      }
+    },
+    {
+      "id": "api-2",
+      "type": "api-server",
+      "label": "API server 2",
+      "position": {
+        "x": 448,
+        "y": 272
+      },
+      "config": {
+        "instances": 2,
+        "concurrency": 50,
+        "serviceTimeMs": 20
+      }
+    },
+    {
+      "id": "api-3",
+      "type": "api-server",
+      "label": "API server 3",
+      "position": {
+        "x": 448,
+        "y": 448
+      },
+      "config": {
+        "instances": 2,
+        "concurrency": 50,
+        "serviceTimeMs": 20
+      }
+    },
+    {
+      "id": "cache",
+      "type": "cache",
+      "label": "Cache",
+      "position": {
+        "x": 704,
+        "y": 96
+      },
+      "config": {}
+    },
+    {
+      "id": "search",
+      "type": "search",
+      "label": "Search index",
+      "position": {
+        "x": 704,
+        "y": 272
+      },
+      "config": {}
+    },
+    {
+      "id": "queue",
+      "type": "queue",
+      "label": "Job queue",
+      "position": {
+        "x": 704,
+        "y": 448
+      },
+      "config": {}
+    },
+    {
+      "id": "workers",
+      "type": "worker",
+      "label": "Workers",
+      "position": {
+        "x": 928,
+        "y": 448
+      },
+      "config": {}
+    },
+    {
+      "id": "db",
+      "type": "database",
+      "label": "DB primary",
+      "position": {
+        "x": 1152,
+        "y": 272
+      },
+      "config": {}
+    },
+    {
+      "id": "replica-1",
+      "type": "database",
+      "label": "DB replica 1",
+      "position": {
+        "x": 1376,
+        "y": 160
+      },
+      "config": {}
+    },
+    {
+      "id": "replica-2",
+      "type": "database",
+      "label": "DB replica 2",
+      "position": {
+        "x": 1376,
+        "y": 384
+      },
+      "config": {}
+    }
+  ],
+  "edges": [
+    {
+      "id": "clients-to-lb",
+      "from": {
+        "node": "clients",
+        "port": "out"
+      },
+      "to": {
+        "node": "lb",
+        "port": "in"
+      },
+      "config": {}
+    },
+    {
+      "id": "lb-to-api-1",
+      "from": {
+        "node": "lb",
+        "port": "out"
+      },
+      "to": {
+        "node": "api-1",
+        "port": "in"
+      },
+      "config": {}
+    },
+    {
+      "id": "lb-to-api-2",
+      "from": {
+        "node": "lb",
+        "port": "out"
+      },
+      "to": {
+        "node": "api-2",
+        "port": "in"
+      },
+      "config": {}
+    },
+    {
+      "id": "lb-to-api-3",
+      "from": {
+        "node": "lb",
+        "port": "out"
+      },
+      "to": {
+        "node": "api-3",
+        "port": "in"
+      },
+      "config": {}
+    },
+    {
+      "id": "api-1-to-cache",
+      "from": {
+        "node": "api-1",
+        "port": "out"
+      },
+      "to": {
+        "node": "cache",
+        "port": "in"
+      },
+      "config": {}
+    },
+    {
+      "id": "api-1-to-search",
+      "from": {
+        "node": "api-1",
+        "port": "out"
+      },
+      "to": {
+        "node": "search",
+        "port": "in"
+      },
+      "config": {}
+    },
+    {
+      "id": "api-1-to-queue",
+      "from": {
+        "node": "api-1",
+        "port": "out"
+      },
+      "to": {
+        "node": "queue",
+        "port": "in"
+      },
+      "config": {}
+    },
+    {
+      "id": "api-2-to-cache",
+      "from": {
+        "node": "api-2",
+        "port": "out"
+      },
+      "to": {
+        "node": "cache",
+        "port": "in"
+      },
+      "config": {}
+    },
+    {
+      "id": "api-2-to-search",
+      "from": {
+        "node": "api-2",
+        "port": "out"
+      },
+      "to": {
+        "node": "search",
+        "port": "in"
+      },
+      "config": {}
+    },
+    {
+      "id": "api-2-to-queue",
+      "from": {
+        "node": "api-2",
+        "port": "out"
+      },
+      "to": {
+        "node": "queue",
+        "port": "in"
+      },
+      "config": {}
+    },
+    {
+      "id": "api-3-to-cache",
+      "from": {
+        "node": "api-3",
+        "port": "out"
+      },
+      "to": {
+        "node": "cache",
+        "port": "in"
+      },
+      "config": {}
+    },
+    {
+      "id": "api-3-to-search",
+      "from": {
+        "node": "api-3",
+        "port": "out"
+      },
+      "to": {
+        "node": "search",
+        "port": "in"
+      },
+      "config": {}
+    },
+    {
+      "id": "api-3-to-queue",
+      "from": {
+        "node": "api-3",
+        "port": "out"
+      },
+      "to": {
+        "node": "queue",
+        "port": "in"
+      },
+      "config": {}
+    },
+    {
+      "id": "cache-to-db",
+      "from": {
+        "node": "cache",
+        "port": "out"
+      },
+      "to": {
+        "node": "db",
+        "port": "in"
+      },
+      "config": {}
+    },
+    {
+      "id": "queue-to-workers",
+      "from": {
+        "node": "queue",
+        "port": "out"
+      },
+      "to": {
+        "node": "workers",
+        "port": "in"
+      },
+      "config": {}
+    },
+    {
+      "id": "workers-to-db",
+      "from": {
+        "node": "workers",
+        "port": "out"
+      },
+      "to": {
+        "node": "db",
+        "port": "in"
+      },
+      "config": {}
+    },
+    {
+      "id": "db-to-replica-1",
+      "from": {
+        "node": "db",
+        "port": "out"
+      },
+      "to": {
+        "node": "replica-1",
+        "port": "in"
+      },
+      "config": {}
+    },
+    {
+      "id": "db-to-replica-2",
+      "from": {
+        "node": "db",
+        "port": "out"
+      },
+      "to": {
+        "node": "replica-2",
+        "port": "in"
+      },
+      "config": {}
+    }
+  ]
+}

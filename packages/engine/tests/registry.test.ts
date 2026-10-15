@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RegisteredComponent } from "../src/contract/component-definition.ts";
+import type { ConfigFields } from "../src/contract/config-field.ts";
 import { validateConfig } from "../src/kernel/config-validation.ts";
 import type { SimulationDesign } from "../src/kernel/design-graph.ts";
 import { runSimulation } from "../src/kernel/simulation.ts";
@@ -54,6 +55,27 @@ function buildHarness(component: RegisteredComponent, seed: number): SimulationD
   return { schemaVersion: 1, run: { durationSeconds: DURATION_SECONDS, seed }, nodes, edges };
 }
 
+/** Every field has a label and a description, a default in range, and fits its relations. */
+function expectFieldsExplained(fields: ConfigFields): void {
+  for (const [name, field] of Object.entries(fields)) {
+    expect(field.label, name).not.toBe("");
+    expect(field.description, name).not.toBe("");
+    if (field.kind === "choice") {
+      expect(field.options, name).toContain(field.default);
+      if (field.optionDescriptions !== undefined) {
+        // One description per option: none missing, none for an option that is gone.
+        expect(Object.keys(field.optionDescriptions).sort(), name).toEqual([...field.options].sort());
+      }
+    } else {
+      expect(field.min, name).toBeLessThanOrEqual(field.default);
+      expect(field.max, name).toBeGreaterThanOrEqual(field.default);
+    }
+    if (field.relevantWhen !== undefined) {
+      expect(fields, name).toHaveProperty(field.relevantWhen.field);
+    }
+  }
+}
+
 describe("createRegistry", () => {
   it("rejects two components with the same type", () => {
     expect(() => createRegistry([stubSinkComponent, stubSinkComponent])).toThrow(
@@ -91,19 +113,31 @@ describe.each([...registry.values()].map((component) => [component.definition.ty
     });
 
     it("explains every config field and gives each number a sensible range", () => {
-      for (const [name, field] of Object.entries(definition.configFields)) {
-        expect(field.label, name).not.toBe("");
-        expect(field.description, name).not.toBe("");
-        if (field.kind === "choice") {
-          expect(field.options, name).toContain(field.default);
-        } else {
-          expect(field.min, name).toBeLessThanOrEqual(field.default);
-          expect(field.max, name).toBeGreaterThanOrEqual(field.default);
+      expectFieldsExplained(definition.configFields);
+    });
+
+    it("declares connection settings only on out ports, each explained with valid defaults", () => {
+      for (const port of definition.ports) {
+        if (port.connectionFields === undefined) {
+          continue;
         }
-        if (field.relevantWhen !== undefined) {
-          expect(definition.configFields, name).toHaveProperty(field.relevantWhen.field);
-        }
+        expect(port.direction, port.id).toBe("out");
+        expectFieldsExplained(port.connectionFields);
+        expect(validateConfig(port.connectionFields, {}), port.id).toMatchObject({ ok: true });
       }
+    });
+
+    it("plans traffic, if it does, as a count that starts at zero and never falls", () => {
+      const { expectedRequests } = definition;
+      if (expectedRequests === undefined) {
+        return;
+      }
+      const validation = validateConfig(definition.configFields, {});
+      const config = validation.ok ? validation.config : {};
+      const totals = [0, 1, 10, 60].map((seconds) => expectedRequests(config, seconds, 1));
+      expect(totals[0]).toBe(0);
+      expect(totals).toEqual([...totals].sort((left, right) => left - right));
+      expect(expectedRequests(config, 10, 2)).toBe(2 * (totals[2] ?? 0));
     });
 
     it("declares uniquely named ports", () => {

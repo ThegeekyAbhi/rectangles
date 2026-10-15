@@ -1,13 +1,14 @@
 import type { ProjectDocument } from "@rectangles/schema";
 import { CURRENT_SCHEMA_VERSION } from "@rectangles/schema";
 import type { BoardElements, ComponentNode, ConnectionEdge } from "../types";
-import { completeConfig } from "./component-catalog";
+import { completeConfig, completeConnectionConfig } from "./component-catalog";
 
 /** Every edge on the board is drawn by the one `connection` edge renderer. */
 export const EDGE_TYPE = "connection";
 
 /** Turns a saved document into the nodes and edges the canvas draws. */
 export function documentToElements(document: ProjectDocument): BoardElements {
+  const typeByNodeId = new Map(document.nodes.map((node) => [node.id, node.type]));
   return {
     nodes: document.nodes.map((node) => ({
       id: node.id,
@@ -26,6 +27,9 @@ export function documentToElements(document: ProjectDocument): BoardElements {
       sourceHandle: edge.from.port,
       target: edge.to.node,
       targetHandle: edge.to.port,
+      data: {
+        config: completeConnectionConfig(typeByNodeId.get(edge.from.node) ?? "", edge.from.port, edge.config),
+      },
     })),
   };
 }
@@ -55,6 +59,7 @@ export function elementsToDocument(
               id: edge.id,
               from: { node: edge.source, port: edge.sourceHandle },
               to: { node: edge.target, port: edge.targetHandle },
+              config: { ...edge.data?.config },
             },
           ],
     ),
@@ -85,7 +90,10 @@ export function isSameDocument(left: BoardElements, right: BoardElements): boole
   );
 }
 
-/** Whether two lists of edges join the same ports, in the same order. */
+/**
+ * Whether two lists of edges join the same ports with the same settings, in the same
+ * order. Settings are replaced, never mutated, so comparing them by identity is enough.
+ */
 export function hasSameConnections(left: BoardElements["edges"], right: BoardElements["edges"]): boolean {
   return (
     left.length === right.length &&
@@ -97,7 +105,8 @@ export function hasSameConnections(left: BoardElements["edges"], right: BoardEle
         edge.source === other.source &&
         edge.target === other.target &&
         edge.sourceHandle === other.sourceHandle &&
-        edge.targetHandle === other.targetHandle
+        edge.targetHandle === other.targetHandle &&
+        edge.data?.config === other.data?.config
       );
     })
   );

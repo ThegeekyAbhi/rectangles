@@ -13,6 +13,6 @@ export function documentToDesign(document: ProjectDocument, durationSeconds: num
     schemaVersion: 1,
     run: { durationSeconds, seed: RUN_SEED },
     nodes: document.nodes.map((node) => ({ id: node.id, type: node.type, config: node.config })),
-    edges: document.edges.map((edge) => ({ id: edge.id, from: edge.from, to: edge.to })),
+    edges: document.edges.map((edge) => ({ id: edge.id, from: edge.from, to: edge.to, config: edge.config })),
   };
 }

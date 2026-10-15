@@ -86,6 +86,8 @@ export function ConfigFieldInput(props: ConfigFieldInputProps) {
   const { fieldName, field, config, onCommit } = props;
   const inputId = useId();
   const helpId = useId();
+  const optionDescription =
+    field.kind === "choice" ? field.optionDescriptions?.[String(config[fieldName] ?? field.default)] : undefined;
   const splitAt = field.label.lastIndexOf(" ") + 1;
   const leadingWords = field.label.slice(0, splitAt);
   const lastWord = field.label.slice(splitAt);
@@ -130,6 +132,12 @@ export function ConfigFieldInput(props: ConfigFieldInputProps) {
           <NumberInput key={String(config[fieldName])} {...props} inputId={inputId} helpId={helpId} />
         )}
       </div>
+      {optionDescription !== undefined && (
+        // What the picked option does, in full width under the row, so choosing teaches.
+        <p className="text-xs text-muted-foreground @min-[17rem]:col-span-2" aria-live="polite">
+          {optionDescription}
+        </p>
+      )}
     </div>
   );
 }

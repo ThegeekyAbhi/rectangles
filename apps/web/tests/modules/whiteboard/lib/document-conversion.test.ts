@@ -8,7 +8,7 @@ import {
 import { defaultConfigFor } from "@/modules/whiteboard/lib/component-catalog";
 
 const document: ProjectDocument = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   nodes: [
     {
       id: "client",
@@ -25,7 +25,20 @@ const document: ProjectDocument = {
       config: defaultConfigFor("api-server"),
     },
   ],
-  edges: [{ id: "e1", from: { node: "client", port: "out" }, to: { node: "api", port: "in" } }],
+  edges: [{ id: "e1", from: { node: "client", port: "out" }, to: { node: "api", port: "in" }, config: {} }],
+};
+
+/** A client calling a load balancer whose one connection to the API server has weight 3. */
+const balanced: ProjectDocument = {
+  ...document,
+  nodes: [
+    ...document.nodes,
+    { id: "lb", type: "load-balancer", label: "LB", position: { x: 160, y: 32 }, config: defaultConfigFor("load-balancer") },
+  ],
+  edges: [
+    { id: "e1", from: { node: "client", port: "out" }, to: { node: "lb", port: "in" }, config: {} },
+    { id: "e2", from: { node: "lb", port: "out" }, to: { node: "api", port: "in" }, config: { weight: 3 } },
+  ],
 };
 
 describe("document conversion", () => {
@@ -65,6 +78,25 @@ describe("document conversion", () => {
     };
     const { nodes, edges } = documentToElements(unknown);
     expect(elementsToDocument(nodes, edges)).toEqual(unknown);
+  });
+
+  it("round-trips each connection's settings", () => {
+    const { nodes, edges } = documentToElements(balanced);
+    expect(edges[1]?.data?.config).toEqual({ weight: 3 });
+    expect(elementsToDocument(nodes, edges)).toEqual(balanced);
+  });
+
+  it("fills in defaults for connection settings a saved edge lacks", () => {
+    const sparse = { ...balanced, edges: [{ ...balanced.edges[1]!, config: {} }] };
+    expect(documentToElements(sparse).edges[0]?.data?.config).toEqual({ weight: 1 });
+  });
+
+  it("treats a changed connection setting as a different document", () => {
+    const before = documentToElements(balanced);
+    const edges = before.edges.map((edge) =>
+      edge.id === "e2" ? { ...edge, data: { config: { weight: 5 } } } : edge,
+    );
+    expect(isSameDocument(before, { nodes: before.nodes, edges })).toBe(false);
   });
 
   it("leaves editing-only state out of the document", () => {

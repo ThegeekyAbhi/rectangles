@@ -4,6 +4,8 @@ import type {
 } from "./contract/component-definition.ts";
 import { apiServerComponent } from "./components/api-server/behaviour.ts";
 import { clientComponent } from "./components/client/behaviour.ts";
+import { databaseComponent } from "./components/database/behaviour.ts";
+import { loadBalancerComponent } from "./components/load-balancer/behaviour.ts";
 
 /** Builds a registry, rejecting two components that claim the same type. */
 export function createRegistry(components: readonly RegisteredComponent[]): ComponentRegistry {
@@ -22,4 +24,6 @@ export function createRegistry(components: readonly RegisteredComponent[]): Comp
 export const registry = createRegistry([
   clientComponent,
   apiServerComponent,
+  loadBalancerComponent,
+  databaseComponent,
 ]);

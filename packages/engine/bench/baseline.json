@@ -7,16 +7,24 @@
       "scenario": "steady: 1,000 requests/s for 60 s",
       "stopReason": "completed",
       "eventsPerRun": 239778,
-      "meanRunMs": 104.43,
-      "eventsPerSecond": 2296144,
+      "meanRunMs": 105.17,
+      "eventsPerSecond": 2279887,
       "runs": 64
     },
     {
       "scenario": "saturated: 8,000 requests/s for 60 s",
       "stopReason": "completed",
       "eventsPerRun": 1738021,
-      "meanRunMs": 838.18,
-      "eventsPerSecond": 2073570,
+      "meanRunMs": 858.5,
+      "eventsPerSecond": 2024489,
+      "runs": 64
+    },
+    {
+      "scenario": "load balanced: 3,000 requests/s over 3 servers for 60 s",
+      "stopReason": "completed",
+      "eventsPerRun": 1255585,
+      "meanRunMs": 476.48,
+      "eventsPerSecond": 2635130,
       "runs": 64
     }
   ]

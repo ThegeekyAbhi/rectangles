@@ -19,6 +19,7 @@ export const stubSinkComponent = defineComponent({
   definition: {
     type: "stub-sink",
     label: "Stub sink",
+    category: "compute",
     description: "Answers every call after a fixed delay.",
     configFields,
     summarise: (config) => `${config.delayMs} ms delay`,

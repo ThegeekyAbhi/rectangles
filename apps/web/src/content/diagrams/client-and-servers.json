@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 2,
+  "nodes": [
+    {
+      "id": "client",
+      "type": "client",
+      "label": "Client",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "config": {
+        "pattern": "ramp",
+        "targetRatePerSecond": 5000,
+        "ratePerSecond": 100
+      }
+    },
+    {
+      "id": "client-2",
+      "type": "client",
+      "label": "Client 2",
+      "position": {
+        "x": 0,
+        "y": 336
+      },
+      "config": {
+        "pattern": "steady",
+        "ratePerSecond": 100
+      }
+    },
+    {
+      "id": "api",
+      "type": "api-server",
+      "label": "API server",
+      "position": {
+        "x": 336,
+        "y": 224
+      },
+      "config": {
+        "instances": 2,
+        "concurrency": 50,
+        "serviceTimeMs": 20
+      }
+    },
+    {
+      "id": "api-2",
+      "type": "api-server",
+      "label": "API server 2",
+      "position": {
+        "x": 400,
+        "y": -176
+      },
+      "config": {
+        "instances": 2,
+        "concurrency": 50,
+        "serviceTimeMs": 20
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "client-to-api-2",
+      "from": {
+        "node": "client",
+        "port": "out"
+      },
+      "to": {
+        "node": "api-2",
+        "port": "in"
+      },
+      "config": {}
+    },
+    {
+      "id": "client-to-api",
+      "from": {
+        "node": "client",
+        "port": "out"
+      },
+      "to": {
+        "node": "api",
+        "port": "in"
+      },
+      "config": {}
+    },
+    {
+      "id": "client-2-to-api",
+      "from": {
+        "node": "client-2",
+        "port": "out"
+      },
+      "to": {
+        "node": "api",
+        "port": "in"
+      },
+      "config": {}
+    }
+  ]
+}

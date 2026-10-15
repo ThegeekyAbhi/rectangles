@@ -101,6 +101,52 @@ describe("client traffic", () => {
   });
 });
 
+describe("client with several targets", () => {
+  // Each server is fast and roomy, so nothing is rejected and only arrivals are measured.
+  function runWithTwoServers(client: Readonly<Record<string, unknown>>, firstServer = {}): RunResult {
+    const design = buildClientApiServerDesign({ client, durationSeconds: 20 });
+    const result = runSimulation(
+      {
+        ...design,
+        nodes: [
+          { id: "client", type: "client", config: client },
+          { id: "api", type: "api-server", config: firstServer },
+          { id: "api-2", type: "api-server", config: {} },
+        ],
+        edges: [
+          ...design.edges,
+          { id: "client-to-api-2", from: { node: "client", port: "out" }, to: { node: "api-2", port: "in" } },
+        ],
+      },
+      { registry },
+    );
+    expectRequestsConserved(result);
+    return result;
+  }
+
+  function received(result: RunResult, nodeId: string): number {
+    return result.nodes.find((node) => node.id === nodeId)?.calls.received ?? 0;
+  }
+
+  it("sends the full rate to every target instead of splitting it", () => {
+    const result = runWithTwoServers({ ratePerSecond: 400 });
+    expectPoissonCount(received(result, "api"), 400 * 20);
+    expectPoissonCount(received(result, "api-2"), 400 * 20);
+    expect(result.summary.offered).toBe(received(result, "api") + received(result, "api-2"));
+  });
+
+  it("sends a retry to the target that refused the attempt before it", () => {
+    const refusesEverything = { instances: 1, concurrency: 1, serviceTimeMs: 600_000, queueLimit: 0 };
+    const withoutRetries = runWithTwoServers({ ratePerSecond: 200 }, refusesEverything);
+    const withRetries = runWithTwoServers(
+      { ratePerSecond: 200, retries: 2, retryBackoffMs: 1 },
+      refusesEverything,
+    );
+    expect(received(withRetries, "api")).toBeGreaterThan(2.9 * received(withoutRetries, "api"));
+    expect(received(withRetries, "api-2")).toBe(received(withoutRetries, "api-2"));
+  });
+});
+
 describe("client timeouts and retries", () => {
   // Constant 50 ms of work against a 10 ms timeout: every request times out.
   const alwaysTooSlow = {
@@ -210,6 +256,9 @@ describe("summary", () => {
         timeoutMs: defaults.timeoutMs.default,
         retries: defaults.retries.default,
         retryBackoffMs: defaults.retryBackoffMs.default,
+        readRatio: defaults.readRatio.default,
+        keyCount: defaults.keyCount.default,
+        keySkew: defaults.keySkew.default,
       }),
     ).toBe("2.5K req/s · steady");
   });

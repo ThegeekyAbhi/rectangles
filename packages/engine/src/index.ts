@@ -25,7 +25,7 @@ export {
 } from "./contract/time-units.ts";
 export { CAPACITY_METRIC_IDS, END_TO_END_METRIC_IDS } from "./contract/metric.ts";
 export type { PortDirection, PortSpec, Protocol } from "./contract/port.ts";
-export type { Outcome } from "./contract/request.ts";
+export type { Operation, Outcome } from "./contract/request.ts";
 export type { ConfigIssue, ConfigValidation, ValidatedConfig } from "./kernel/config-validation.ts";
 export { validateConfig } from "./kernel/config-validation.ts";
 export type {
@@ -38,6 +38,13 @@ export type {
   SimulationDesign,
 } from "./kernel/design-graph.ts";
 export { DesignError, findDesignIssues } from "./kernel/design-graph.ts";
+export type {
+  EventBudgetEstimate,
+  EventBudgetOptions,
+  EventBudgetProjector,
+  RunProgress,
+} from "./kernel/event-budget.ts";
+export { createEventBudgetProjector, DEFAULT_PROBE_EVENTS, estimateEventBudget } from "./kernel/event-budget.ts";
 export type { Simulation, SimulationLimits, SimulationOptions } from "./kernel/simulation.ts";
 export {
   createSimulation,

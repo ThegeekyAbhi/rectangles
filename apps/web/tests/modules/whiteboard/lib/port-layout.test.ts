@@ -1,15 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { NODE_HEIGHT, NODE_WIDTH } from "@/modules/whiteboard/lib/component-visuals";
 import { portAnchor, portOffset } from "@/modules/whiteboard/lib/port-layout";
-import type { ComponentNode } from "@/modules/whiteboard/types";
+import type { PlacedComponent } from "@/modules/whiteboard/lib/port-layout";
 
-function node(componentType: string, x: number, y: number): ComponentNode {
-  return {
-    id: componentType,
-    type: "component",
-    position: { x, y },
-    data: { componentType, label: componentType, config: {} },
-  };
+function node(componentType: string, x: number, y: number): PlacedComponent {
+  return { componentType, position: { x, y } };
 }
 
 describe("portOffset", () => {

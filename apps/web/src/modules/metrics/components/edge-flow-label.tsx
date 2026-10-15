@@ -2,7 +2,7 @@
 
 import { useRunStore } from "@/modules/simulation";
 import { useRunTiming } from "../hooks/use-run-reading";
-import { formatNumber } from "../lib/format-metric";
+import { formatCompactNumber, formatNumber } from "../lib/format-metric";
 import { currentRate } from "../lib/window-readings";
 
 /** How many calls per second travel along a connection, counted by the engine. */
@@ -19,10 +19,10 @@ export function EdgeFlowLabel({ edgeId }: { edgeId: string }) {
   return (
     <span
       data-slot="edge-flow-label"
-      title="Calls sent along this connection per second"
-      className="rounded-sm border border-node-border bg-background px-1 py-px text-[11px] leading-4 text-muted-foreground tabular-nums"
+      title={`${formatNumber(rate)} calls sent along this connection per second`}
+      className="rounded-sm bg-background px-1 text-[11px] leading-4 text-muted-foreground tabular-nums"
     >
-      {formatNumber(rate)}/s
+      {formatCompactNumber(rate)}/s
     </span>
   );
 }

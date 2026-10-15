@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { describeError } from "../lib/describe-error";
 import type { ProjectSummary } from "../types";
 import {
   createProject,
@@ -10,10 +11,6 @@ import {
   restoreProject,
 } from "./project-repository";
 import { projectKeys } from "./use-projects";
-
-function describeError(error: unknown): string {
-  return error instanceof Error ? error.message : "Something went wrong.";
-}
 
 function useRefreshProjects() {
   const queryClient = useQueryClient();

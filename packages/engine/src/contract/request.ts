@@ -10,12 +10,21 @@ import type { Micros } from "./time-units.ts";
  */
 export type Outcome = "ok" | "rejected" | "failed" | "timed-out";
 
+/** What a request does to the item of data it touches. */
+export type Operation = "read" | "write";
+
 /** One attempt by an originator to get something done. Shared by every call made for it. */
 export interface Request {
   readonly id: number;
   /** 0 for the first attempt, 1 for the first retry, and so on. */
   readonly attempt: number;
   readonly createdAtMicros: Micros;
+  readonly operation: Operation;
+  /**
+   * The item of data the request touches, from 0 up to the originator's key count. Two
+   * requests with the same key touch the same row, so they can contend for it.
+   */
+  readonly key: number;
 }
 
 /**

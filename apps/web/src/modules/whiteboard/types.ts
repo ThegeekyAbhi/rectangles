@@ -14,8 +14,15 @@ export type ComponentNodeData = {
 /** Every node on the board is drawn by the one `component` node renderer. */
 export type ComponentNode = Node<ComponentNodeData, "component">;
 
+/** A connection's settings, as declared by its source port and validated by the engine. */
+export type ConnectionConfig = ValidatedConfig;
+
+export type ConnectionEdgeData = {
+  config: ConnectionConfig;
+};
+
 /** An edge whose handles are the port ids it joins. */
-export type ConnectionEdge = Edge;
+export type ConnectionEdge = Edge<ConnectionEdgeData>;
 
 export interface BoardElements {
   readonly nodes: ComponentNode[];

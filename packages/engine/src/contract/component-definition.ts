@@ -4,12 +4,16 @@ import type { MetricSpec } from "./metric.ts";
 import type { PortSpec } from "./port.ts";
 import type { Call, Outcome } from "./request.ts";
 
+/** The section of the component library a component appears in. */
+export type ComponentCategory = "traffic" | "compute" | "data" | "messaging";
+
 /** Everything about a component that can be known without running it. */
 export interface ComponentDefinition<Fields extends ConfigFields = ConfigFields> {
   /** Unique kebab-case id, for example `api-server`. */
   readonly type: string;
   readonly label: string;
   readonly description: string;
+  readonly category: ComponentCategory;
   readonly configFields: Fields;
   readonly ports: readonly PortSpec[];
   readonly metrics: readonly MetricSpec[];
@@ -20,6 +24,12 @@ export interface ComponentDefinition<Fields extends ConfigFields = ConfigFields>
    * for example `2 × 50 slots · 20 ms`.
    */
   summarise(config: ConfigOf<Fields>): string;
+  /**
+   * Traffic sources only: the requests this component originates in the first `seconds`
+   * of a run, not counting retries, when its out ports reach `targetCount` targets in all.
+   * Lets the engine tell before a run whether it fits the event limit.
+   */
+  expectedRequests?(config: ConfigOf<Fields>, seconds: number, targetCount: number): number;
 }
 
 /** What a component does. Every handler except `init` is optional. */

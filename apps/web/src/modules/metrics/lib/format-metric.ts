@@ -3,6 +3,8 @@ import type { SampleStatistics } from "@rectangles/engine";
 const wholeNumber = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 const preciseNumber = new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3 });
 const percentage = new Intl.NumberFormat("en-US", { style: "percent", maximumFractionDigits: 1 });
+const wholePercentage = new Intl.NumberFormat("en-US", { style: "percent", maximumFractionDigits: 0 });
+const compactNumber = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
 
 /** Shown where a figure is not available yet. */
 export const NO_VALUE = "—";
@@ -16,6 +18,16 @@ export function formatNumber(value: number): string {
 
 export function formatPercentage(ratio: number): string {
   return percentage.format(ratio);
+}
+
+/** A percentage rounded for a glance, such as `18%`. Any load at all reads `<1%`, never `0%`. */
+export function formatWholePercentage(ratio: number): string {
+  return ratio > 0 && ratio < 0.005 ? "<1%" : wholePercentage.format(ratio);
+}
+
+/** A number short enough to sit on the canvas: `149`, `8.2K`, `1.5M`. */
+export function formatCompactNumber(value: number): string {
+  return compactNumber.format(value);
 }
 
 /** A value with its unit, as the engine declares it: `ratio` reads as a percentage. */

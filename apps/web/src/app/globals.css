@@ -191,8 +191,9 @@
     cursor: pointer;
   }
 }
-/* The board (React Flow) takes its colours from the design tokens above. */
-.react-flow {
+/* The board (React Flow) and read-only diagrams take their colours from the design tokens above. */
+.react-flow,
+.static-diagram {
   --xy-background-color: var(--background);
   --xy-background-pattern-color: color-mix(in oklch, var(--foreground) 18%, transparent);
   --xy-edge-stroke: color-mix(in oklch, var(--foreground) 60%, transparent);
@@ -208,6 +209,23 @@
   --xy-minimap-mask-background-color: color-mix(in oklch, var(--muted) 70%, transparent);
   --xy-minimap-node-background-color: color-mix(in oklch, var(--foreground) 18%, transparent);
   --xy-attribution-background-color: transparent;
+}
+
+/*
+ * A component's load drawn on its border: a sweep from the top, clockwise, to `--load`
+ * percent, cut down to a band as wide as the border. Takes the shape of whatever tile
+ * it sits on. The colour is the element's text colour.
+ */
+@utility load-ring {
+  padding: 2px;
+  background: conic-gradient(currentColor calc(var(--load) * 1%), transparent 0);
+  -webkit-mask:
+    linear-gradient(black 0 0) content-box,
+    linear-gradient(black 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(black 0 0) content-box exclude,
+    linear-gradient(black 0 0);
 }
 
 /* Out ports are dots and in ports are short bars, so the way a connection runs is plain. */

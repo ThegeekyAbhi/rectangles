@@ -2,6 +2,7 @@ import { formatCompactNumber } from "../../contract/compact-number.ts";
 import type { ComponentDefinition } from "../../contract/component-definition.ts";
 import type { ConfigFields, ConfigOf } from "../../contract/config-field.ts";
 import { END_TO_END_METRIC_IDS } from "../../contract/metric.ts";
+import { requestsBy } from "./traffic-pattern.ts";
 
 const CHANGING_PATTERNS = ["ramp", "spike", "step"] as const;
 
@@ -70,6 +71,31 @@ export const clientConfigFields = {
     min: 0,
     max: 10,
   },
+  readRatio: {
+    kind: "number",
+    label: "Read share",
+    description: "Fraction of requests that read data; the rest write it. Writes are slower and lock their row.",
+    default: 0.9,
+    min: 0,
+    max: 1,
+  },
+  keyCount: {
+    kind: "integer",
+    label: "Keys",
+    description: "Distinct items of data (rows, users, products) the requests touch.",
+    default: 10_000,
+    min: 1,
+    max: 10_000_000,
+  },
+  keySkew: {
+    kind: "number",
+    label: "Key skew",
+    description:
+      "How unevenly requests pick keys (Zipf exponent). 0 is even; 1 means a few hot keys get most traffic, like real sites.",
+    default: 1,
+    min: 0,
+    max: 4,
+  },
   retryBackoffMs: {
     kind: "number",
     label: "Retry backoff",
@@ -87,6 +113,7 @@ export const clientDefinition: ComponentDefinition<typeof clientConfigFields> = 
   type: "client",
   label: "Client",
   description: "Generates requests and measures what comes back.",
+  category: "traffic",
   configFields: clientConfigFields,
   summarise(config) {
     const rate = formatCompactNumber(config.ratePerSecond);
@@ -94,12 +121,16 @@ export const clientDefinition: ComponentDefinition<typeof clientConfigFields> = 
       ? `${rate} req/s · steady`
       : `${rate} → ${formatCompactNumber(config.targetRatePerSecond)} req/s · ${config.pattern}`;
   },
+  expectedRequests(config, seconds, targetCount) {
+    // Each target gets its own stream at the full rate.
+    return requestsBy(config, seconds) * targetCount;
+  },
   ports: [
     {
       id: "out",
       direction: "out",
       protocol: "sync-request",
-      description: "Requests sent to the system. With several targets, they take turns.",
+      description: "Requests sent to the system. Each target gets the full rate; put a load balancer in front of several servers to split it.",
     },
   ],
   metrics: [
@@ -151,6 +182,6 @@ export const clientDefinition: ComponentDefinition<typeof clientConfigFields> = 
     "Connection setup, keep-alive and connection limits.",
     "Latency across retries: each attempt is timed on its own.",
     "Retry jitter and retry budgets.",
-    "Read/write mix and key distribution (added with the database and cache).",
+    "Keys that change popularity over time: the hot keys stay hot for the whole run.",
   ],
 };

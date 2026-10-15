@@ -1,5 +1,4 @@
 import type { XYPosition } from "@xyflow/react";
-import type { ComponentNode } from "../types";
 import { findComponentDefinition } from "./component-catalog";
 import { NODE_HEIGHT, NODE_WIDTH } from "./component-visuals";
 
@@ -11,12 +10,18 @@ export function portOffset(index: number, count: number): number {
   return (index + 1) / (count + 1);
 }
 
+/** What placing a port needs to know about its node, on the board or in a saved document. */
+export interface PlacedComponent {
+  readonly componentType: string;
+  readonly position: XYPosition;
+}
+
 /**
  * Where a port sits on the board: in ports on the node's left side, out ports on its
  * right. `undefined` if the node's component has no such port.
  */
-export function portAnchor(node: ComponentNode, portId: string): XYPosition | undefined {
-  const ports = findComponentDefinition(node.data.componentType)?.ports ?? [];
+export function portAnchor(node: PlacedComponent, portId: string): XYPosition | undefined {
+  const ports = findComponentDefinition(node.componentType)?.ports ?? [];
   const port = ports.find((candidate) => candidate.id === portId);
   if (port === undefined) {
     return undefined;

@@ -1,8 +1,9 @@
 import type { Behaviour, ComponentRegistry } from "../contract/component-definition.ts";
+import type { ConfigFields, ConfigOf } from "../contract/config-field.ts";
 import type { Context, RandomSource, SetupContext, TimerHandle } from "../contract/context.ts";
 import type { MetricHandle } from "../contract/metric.ts";
 import type { PortHandle } from "../contract/port.ts";
-import type { Call, Outcome, Request } from "../contract/request.ts";
+import type { Call, Operation, Outcome, Request } from "../contract/request.ts";
 import type { Micros } from "../contract/time-units.ts";
 import { MICROS_PER_SECOND, secondsToMicros } from "../contract/time-units.ts";
 import { CounterSeries, MetricRecorder } from "../metrics/metric-recorder.ts";
@@ -36,6 +37,8 @@ export interface SimulationOptions {
 
 export interface Simulation {
   readonly nowMicros: Micros;
+  /** Events handled so far; the run stops once this reaches the event limit. */
+  readonly eventsProcessed: number;
   /** `null` until the run has ended. */
   readonly stopReason: StopReason | null;
   /**
@@ -55,7 +58,7 @@ export interface Simulation {
 /** A pooled call. The fields beyond `Call` belong to the kernel. */
 class CallRecord implements Call {
   readonly slot: number;
-  request: Request = { id: -1, attempt: 0, createdAtMicros: 0 };
+  request: Request = { id: -1, attempt: 0, createdAtMicros: 0, operation: "read", key: 0 };
   sentAtMicros: Micros = 0;
   parent: Call | null = null;
   callerScratchA = 0;
@@ -104,6 +107,21 @@ class NodeSetupContext implements SetupContext<unknown> {
     }
     return index;
   }
+
+  connections<Fields extends ConfigFields>(port: PortHandle, fields: Fields): readonly ConfigOf<Fields>[] {
+    const spec = this.node.component.definition.ports[port];
+    const configs = this.node.connectionConfigsByPort[port];
+    if (spec === undefined || configs === undefined) {
+      throw new RangeError(`Port handle ${port} does not belong to this component.`);
+    }
+    if (spec.connectionFields !== fields) {
+      throw new Error(
+        `Component "${this.node.component.definition.type}" asked for connections of port "${spec.id}" with fields that port does not declare.`,
+      );
+    }
+    // Safe: every entry was validated against exactly these fields when the graph was built.
+    return configs as readonly ConfigOf<Fields>[];
+  }
 }
 
 class NodeContext implements Context<unknown, unknown> {
@@ -137,8 +155,8 @@ class NodeContext implements Context<unknown, unknown> {
     this.engine.cancelTimer(timer);
   }
 
-  createRequest(attempt: number): Request {
-    return this.engine.createRequest(attempt);
+  createRequest(attempt: number, operation: Operation = "read", key = 0): Request {
+    return this.engine.createRequest(attempt, operation, key);
   }
 
   targetCount(port: PortHandle): number {
@@ -199,7 +217,7 @@ class SimulationEngine implements Simulation {
   private readonly edges: RuntimeEdge[];
   private readonly calls: CallRecord[] = [];
   private readonly freeCalls: CallRecord[] = [];
-  private eventsProcessed = 0;
+  eventsProcessed = 0;
   private nextRequestId = 0;
 
   constructor(design: unknown, options: SimulationOptions) {
@@ -330,8 +348,8 @@ class SimulationEngine implements Simulation {
     this.queue.cancel(timer);
   }
 
-  createRequest(attempt: number): Request {
-    return { id: this.nextRequestId++, attempt, createdAtMicros: this.nowMicros };
+  createRequest(attempt: number, operation: Operation, key: number): Request {
+    return { id: this.nextRequestId++, attempt, createdAtMicros: this.nowMicros, operation, key };
   }
 
   targetsOf(nodeIndex: number, port: PortHandle): readonly number[] {

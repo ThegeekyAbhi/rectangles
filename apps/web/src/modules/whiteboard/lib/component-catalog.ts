@@ -1,6 +1,6 @@
-import type { ComponentDefinition } from "@rectangles/engine";
+import type { ComponentDefinition, ConfigFields } from "@rectangles/engine";
 import { registry, validateConfig } from "@rectangles/engine";
-import type { ComponentConfig } from "../types";
+import type { ComponentConfig, ConnectionConfig } from "../types";
 
 /** Every component the engine can simulate, in registration order. */
 export function listComponentDefinitions(): ComponentDefinition[] {
@@ -42,4 +42,35 @@ export function completeConfig(componentType: string, config: ComponentConfig): 
 export function summariseConfig(componentType: string, config: ComponentConfig): string | null {
   const validated = validatedConfig(componentType, config);
   return validated === null ? null : validated.definition.summarise(validated.config);
+}
+
+/** The settings each connection leaving a component's port carries; empty when it has none. */
+export function findConnectionFields(componentType: string, portId: string): ConfigFields {
+  const port = findComponentDefinition(componentType)?.ports.find((candidate) => candidate.id === portId);
+  return port?.connectionFields ?? {};
+}
+
+/**
+ * A connection's settings with defaults filled in. Invalid settings are returned
+ * untouched, as `completeConfig` does for a component.
+ */
+export function completeConnectionConfig(
+  componentType: string,
+  portId: string,
+  config: ConnectionConfig,
+): ConnectionConfig {
+  const validation = validateConfig(findConnectionFields(componentType, portId), config);
+  return validation.ok ? validation.config : config;
+}
+
+/**
+ * A connection's settings that differ from their defaults, in one short line such as
+ * `weight 25`. `null` when every setting is at its default.
+ */
+export function summariseConnection(componentType: string, portId: string, config: ConnectionConfig): string | null {
+  const parts = Object.entries(findConnectionFields(componentType, portId)).flatMap(([name, field]) => {
+    const value = config[name];
+    return value === undefined || value === field.default ? [] : [`${field.label.toLowerCase()} ${value}`];
+  });
+  return parts.length === 0 ? null : parts.join(" · ");
 }

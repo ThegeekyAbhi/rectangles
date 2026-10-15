@@ -2,6 +2,7 @@ import type { ProjectDocument } from "@rectangles/schema";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   createProject,
+  createProjectFromDocument,
   deleteProject,
   duplicateProject,
   listProjects,
@@ -15,7 +16,7 @@ import {
 import { openLocalDatabase } from "@/modules/projects/lib/local-database";
 
 const board: ProjectDocument = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   nodes: [{ id: "client", type: "client", label: "Client", position: { x: 0, y: 0 }, config: {} }],
   edges: [],
 };
@@ -32,13 +33,28 @@ describe("project repository", () => {
     expect(project).toMatchObject({ name: "Untitled project", revision: 0, deletedAt: null });
     expect(await loadProject(project.id)).toMatchObject({
       status: "ready",
-      document: { schemaVersion: 1, nodes: [], edges: [] },
+      document: { schemaVersion: 2, nodes: [], edges: [] },
     });
   });
 
   it("numbers further untitled projects", async () => {
     await createProject();
     expect((await createProject()).name).toBe("Untitled project 2");
+  });
+
+  it("creates a project holding a copy of a given board, under a name not yet taken", async () => {
+    const first = await createProjectFromDocument("Lesson: Caching", board);
+    const second = await createProjectFromDocument("Lesson: Caching", board);
+
+    expect([first.name, second.name]).toEqual(["Lesson: Caching", "Lesson: Caching 2"]);
+    expect(await loadProject(first.id)).toMatchObject({ status: "ready", document: board });
+  });
+
+  it("refuses to create a project from a board that is not valid", async () => {
+    await expect(createProjectFromDocument("Broken", { schemaVersion: 2, nodes: "none" })).rejects.toThrow(
+      /damaged/,
+    );
+    expect(await listProjects()).toEqual([]);
   });
 
   it("lists projects with the most recently edited first", async () => {

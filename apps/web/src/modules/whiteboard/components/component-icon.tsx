@@ -1,11 +1,30 @@
-"use client";
-
 import type { Icon, IconProps } from "@phosphor-icons/react";
-import { CubeIcon, HardDrivesIcon, UsersThreeIcon } from "@phosphor-icons/react";
+// The SSR build reads no React context, so this renders on the server (lesson diagrams) and on the board alike.
+import {
+  ArrowsSplitIcon,
+  CubeIcon,
+  DatabaseIcon,
+  GearSixIcon,
+  HardDrivesIcon,
+  LightningIcon,
+  MagnifyingGlassIcon,
+  QueueIcon,
+  UsersThreeIcon,
+} from "@phosphor-icons/react/ssr";
 
+/**
+ * Includes types the engine does not simulate yet (database, cache, queue, worker,
+ * search), so diagrams that show them already look right.
+ */
 const ICON_BY_COMPONENT_TYPE: Readonly<Record<string, Icon>> = {
   client: UsersThreeIcon,
   "api-server": HardDrivesIcon,
+  "load-balancer": ArrowsSplitIcon,
+  database: DatabaseIcon,
+  cache: LightningIcon,
+  queue: QueueIcon,
+  worker: GearSixIcon,
+  search: MagnifyingGlassIcon,
 };
 
 /**

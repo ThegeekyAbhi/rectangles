@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { defaultConfigFor, summariseConfig } from "@/modules/whiteboard/lib/component-catalog";
+import {
+  defaultConfigFor,
+  findConnectionFields,
+  summariseConfig,
+  summariseConnection,
+} from "@/modules/whiteboard/lib/component-catalog";
 
 describe("summariseConfig", () => {
   it("gives a component's key settings in one line", () => {
@@ -17,5 +22,19 @@ describe("summariseConfig", () => {
 
   it("gives nothing for a component this version does not know", () => {
     expect(summariseConfig("mainframe", {})).toBeNull();
+  });
+});
+
+describe("connection settings", () => {
+  it("finds the settings a port's connections carry, and none for other ports", () => {
+    expect(Object.keys(findConnectionFields("load-balancer", "out"))).toEqual(["weight"]);
+    expect(findConnectionFields("client", "out")).toEqual({});
+    expect(findConnectionFields("mainframe", "out")).toEqual({});
+  });
+
+  it("summarises only the settings that differ from their defaults", () => {
+    expect(summariseConnection("load-balancer", "out", { weight: 25 })).toBe("weight 25");
+    expect(summariseConnection("load-balancer", "out", { weight: 1 })).toBeNull();
+    expect(summariseConnection("client", "out", {})).toBeNull();
   });
 });

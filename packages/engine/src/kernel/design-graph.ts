@@ -18,6 +18,8 @@ export interface DesignEdge {
   readonly id: string;
   readonly from: PortReference;
   readonly to: PortReference;
+  /** Settings declared by the source port's `connectionFields`. Fields left out take defaults. */
+  readonly config?: Readonly<Record<string, unknown>>;
 }
 
 export interface RunSettings {
@@ -41,6 +43,7 @@ export type DesignIssueCode =
   | "duplicate-node-id"
   | "unknown-component-type"
   | "invalid-config"
+  | "invalid-connection-config"
   | "unknown-node"
   | "unknown-port"
   | "wrong-port-direction";
@@ -72,6 +75,8 @@ export interface GraphNode {
   readonly targetsByPort: readonly (readonly number[])[];
   /** The edge behind each entry of `targetsByPort`, as an index into the graph's `edgeIds`. */
   readonly edgesByPort: readonly (readonly number[])[];
+  /** The validated settings of each entry of `targetsByPort`. */
+  readonly connectionConfigsByPort: readonly (readonly ValidatedConfig[])[];
 }
 
 export interface DesignGraph {
@@ -141,6 +146,7 @@ export function buildDesignGraph(design: unknown, registry: ComponentRegistry): 
     config: ValidatedConfig;
     targetsByPort: number[][];
     edgesByPort: number[][];
+    connectionConfigsByPort: ValidatedConfig[][];
   }[] = [];
   const edgeIds: string[] = [];
 
@@ -182,6 +188,7 @@ export function buildDesignGraph(design: unknown, registry: ComponentRegistry): 
       config: validation.config,
       targetsByPort: component.definition.ports.map(() => []),
       edgesByPort: component.definition.ports.map(() => []),
+      connectionConfigsByPort: component.definition.ports.map(() => []),
     });
   }
 
@@ -244,11 +251,27 @@ export function buildDesignGraph(design: unknown, registry: ComponentRegistry): 
       resolved.push({ nodeIndex, portIndex });
     }
     const [source, target] = resolved;
-    if (source !== undefined && target !== undefined) {
-      nodes[source.nodeIndex]?.targetsByPort[source.portIndex]?.push(target.nodeIndex);
-      nodes[source.nodeIndex]?.edgesByPort[source.portIndex]?.push(edgeIds.length);
-      edgeIds.push(edgeId);
+    const sourceNode = source === undefined ? undefined : nodes[source.nodeIndex];
+    if (source === undefined || target === undefined || sourceNode === undefined) {
+      continue;
     }
+    const sourcePort = sourceNode.component.definition.ports[source.portIndex];
+    const validation = validateConfig(sourcePort?.connectionFields ?? {}, edge.config);
+    if (!validation.ok) {
+      for (const issue of validation.issues) {
+        issues.push({
+          code: "invalid-connection-config",
+          edgeId,
+          field: issue.field,
+          message: `Edge "${edgeId}", field "${issue.field}": ${issue.message}`,
+        });
+      }
+      continue;
+    }
+    sourceNode.targetsByPort[source.portIndex]?.push(target.nodeIndex);
+    sourceNode.edgesByPort[source.portIndex]?.push(edgeIds.length);
+    sourceNode.connectionConfigsByPort[source.portIndex]?.push(validation.config);
+    edgeIds.push(edgeId);
   }
 
   if (issues.length > 0) {

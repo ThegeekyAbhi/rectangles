@@ -87,6 +87,25 @@ describe("connecting", () => {
     ]);
   });
 
+  it("starts a connection with its source port's default settings", () => {
+    const lb = store.getState().addNode("load-balancer", { x: 0, y: 0 });
+    const api = store.getState().addNode("api-server", { x: 300, y: 0 });
+    store.getState().connect({ source: lb, sourceHandle: "out", target: api, targetHandle: "in" });
+    expect(store.getState().edges[0]?.data?.config).toEqual({ weight: 1 });
+  });
+
+  it("replaces a connection's settings, as one undoable step", () => {
+    const lb = store.getState().addNode("load-balancer", { x: 0, y: 0 });
+    const api = store.getState().addNode("api-server", { x: 300, y: 0 });
+    store.getState().connect({ source: lb, sourceHandle: "out", target: api, targetHandle: "in" });
+    const edgeId = store.getState().edges[0]?.id ?? "";
+
+    store.getState().setEdgeConfig(edgeId, { weight: 4 });
+    expect(store.getState().edges[0]?.data?.config).toEqual({ weight: 4 });
+    history().undo();
+    expect(store.getState().edges[0]?.data?.config).toEqual({ weight: 1 });
+  });
+
   it("ignores a malformed or repeated connection", () => {
     const client = store.getState().addNode("client", { x: 0, y: 0 });
     const api = store.getState().addNode("api-server", { x: 300, y: 0 });

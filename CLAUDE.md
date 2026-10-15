@@ -133,6 +133,7 @@ Connection validity is derived from port declarations, never hand-written per co
 ### 6. Module boundaries
 
 - **Import other modules only through their `index.ts`.** `@/modules/projects` is fine; `@/modules/projects/components/project-card` is not.
+- **Exception: a server-safe entry.** Next bundles every client component a page's imports can reach, so a page that must stay light (lesson diagrams) cannot import a barrel that re-exports the board. A module may add one extra top-level entry (`whiteboard/diagrams.ts`, `projects/open-in-whiteboard.ts`) that exports no heavy client components and says why at the top. Import it like `index.ts`; nothing deeper.
 - Export the minimum from `index.ts`. Unexported means private.
 - No circular dependencies between modules. If two modules need each other, the shared part moves down into `lib/` or a package.
 - **Promote on second use.** Code stays inside its module until a second module needs it, then moves to shared. Do not pre-emptively share.

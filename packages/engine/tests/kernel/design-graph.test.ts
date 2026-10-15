@@ -86,6 +86,37 @@ describe("buildDesignGraph", () => {
     expect(issueCodesFor({ ...validDesign, edges })).toEqual(["unknown-node", "unknown-port"]);
   });
 
+  describe("connection settings", () => {
+    const loadBalancedDesign = {
+      ...validDesign,
+      nodes: [...validDesign.nodes, { id: "lb", type: "load-balancer" }],
+      edges: [
+        { id: "client-to-lb", from: { node: "client", port: "out" }, to: { node: "lb", port: "in" } },
+        { id: "lb-to-api", from: { node: "lb", port: "out" }, to: { node: "api", port: "in" }, config: { weight: 3 } },
+      ],
+    };
+
+    it("validates each connection against its source port and fills in defaults", () => {
+      const graph = buildDesignGraph(loadBalancedDesign, registry);
+      expect(graph.nodes[2]?.connectionConfigsByPort).toEqual([[], [{ weight: 3 }]]);
+      // A port without connection fields still gets an (empty) config per target.
+      expect(graph.nodes[0]?.connectionConfigsByPort).toEqual([[{}]]);
+    });
+
+    it("reports an invalid or unknown connection setting with its edge", () => {
+      const edges = [
+        loadBalancedDesign.edges[0],
+        { ...loadBalancedDesign.edges[1], config: { weight: 0 } },
+        { id: "stray", from: { node: "client", port: "out" }, to: { node: "api", port: "in" }, config: { weight: 2 } },
+      ];
+      const issues = findDesignIssues({ ...loadBalancedDesign, edges }, registry);
+      expect(issues.map(({ code, edgeId, field }) => ({ code, edgeId, field }))).toEqual([
+        { code: "invalid-connection-config", edgeId: "lb-to-api", field: "weight" },
+        { code: "invalid-connection-config", edgeId: "stray", field: "weight" },
+      ]);
+    });
+  });
+
   it("rejects edges that run from an in port or into an out port", () => {
     const edges = [
       { id: "e1", from: { node: "api", port: "in" }, to: { node: "client", port: "out" } },

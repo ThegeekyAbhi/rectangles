@@ -51,8 +51,20 @@ async function insertProject(name: string, document: StoredDocument["document"])
   return project;
 }
 
-export async function createProject(): Promise<ProjectSummary> {
-  return insertProject(uniqueName(DEFAULT_PROJECT_NAME, await activeNames()), createEmptyDocument());
+export function createProject(): Promise<ProjectSummary> {
+  return createProjectFromDocument(DEFAULT_PROJECT_NAME, createEmptyDocument());
+}
+
+/**
+ * Stores a new project holding a copy of the given board, under a name not yet taken.
+ * Used to open a lesson's diagram as a board of its own.
+ */
+export async function createProjectFromDocument(name: string, document: unknown): Promise<ProjectSummary> {
+  const parsed = parseProjectDocument(document);
+  if (!parsed.ok) {
+    throw new Error(parsed.message);
+  }
+  return insertProject(uniqueName(cleanName(name), await activeNames()), parsed.document);
 }
 
 async function updateProject(

@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatCompactNumber,
   formatMetricValue,
   formatNumber,
   formatPercentage,
   formatPerSecond,
+  formatWholePercentage,
 } from "@/modules/metrics/lib/format-metric";
 
 describe("formatNumber", () => {
@@ -40,5 +42,22 @@ describe("formatPercentage", () => {
   it("keeps one decimal place at most", () => {
     expect(formatPercentage(0.24014)).toBe("24%");
     expect(formatPercentage(0.5749)).toBe("57.5%");
+  });
+});
+
+describe("formatWholePercentage", () => {
+  it("rounds to a whole percentage but never hides a small load as zero", () => {
+    expect(formatWholePercentage(0)).toBe("0%");
+    expect(formatWholePercentage(0.004)).toBe("<1%");
+    expect(formatWholePercentage(0.177)).toBe("18%");
+    expect(formatWholePercentage(1)).toBe("100%");
+  });
+});
+
+describe("formatCompactNumber", () => {
+  it("shortens large numbers and leaves small ones alone", () => {
+    expect(formatCompactNumber(149)).toBe("149");
+    expect(formatCompactNumber(8_245)).toBe("8.2K");
+    expect(formatCompactNumber(1_500_000)).toBe("1.5M");
   });
 });

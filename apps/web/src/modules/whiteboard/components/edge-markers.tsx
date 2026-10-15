@@ -1,7 +1,7 @@
 export const ARROW_MARKER_ID = "connection-arrow";
 export const SELECTED_ARROW_MARKER_ID = "connection-arrow-selected";
 
-function ArrowMarker({ id, colour }: { id: string; colour: string }) {
+export function ArrowMarker({ id, colour }: { id: string; colour: string }) {
   return (
     <marker
       id={id}

@@ -282,7 +282,7 @@ likely components are built:
 
 | Component | Blocks | What emerges | Needs |
 | --- | --- | --- | --- |
-| Load balancer | Router, delay | Uneven load, rejections with no healthy target | — |
+| Load balancer | Router (weighted, by connection settings), delay, state machine per target for ejection | Weighted split, slow targets avoided (least connections, least time), ejection and flapping under overload | Built (`components/load-balancer/`) |
 | Database | Server pool, bounded queue | Connection-pool exhaustion; writes slower than reads | K1 |
 | Read replica | Database + a stream of writes from the primary | Replication lag, stale reads | K1, K2, K3 |
 | Cache | Keyed store (LRU, TTL), delay | Hit rate from key skew, capacity and TTL | K1, K2, K7 |
@@ -358,7 +358,7 @@ Names are proposals. Each is settled when its first component needs it.
 | --- | --- | --- | --- | --- |
 | K1 | A request carries nothing but `id`, `attempt` and `createdAtMicros` (`contract/request.ts:14`) | Add `operation` (`"read"` or `"write"`) and `key`. Later `sizeBytes` and `deadlineMicros` | `contract/request.ts`, `createRequest` | M5 database, M6 cache |
 | K2 | A reply carries only an outcome (`contract/context.ts:59`) | `context.reply(call, outcome, replyValue)`; the caller reads `call.replyValue`. A number, so nothing is allocated | `contract/`, `kernel/simulation.ts` `reply` | M6 cache (hit or miss) |
-| K3 | Links are instant and have no settings (`kernel/simulation.ts:381`, `kernel/design-graph.ts:17`) | Edges take a `latencyMs` setting. The kernel delays `ARRIVE` and `REPLY` by it | `kernel/design-graph.ts`, `send`, `reply`, `packages/schema` | CDN, edge function, regions |
+| K3 | Links are instant (`kernel/simulation.ts` `send`, `reply`). Edges can carry settings now, but only ones a component reads (`PortSpec.connectionFields`, `SetupContext.connections`) | Add a kernel-owned `latencyMs` connection setting on every edge. The kernel delays `ARRIVE` and `REPLY` by it | `kernel/design-graph.ts`, `send`, `reply` | CDN, edge function, regions |
 | K4 | Components cannot be told about a failure (`contract/component-definition.ts:26`) | Run settings gain a fault schedule. The kernel delivers each fault to an optional `onFault` handler. Link faults are handled by the kernel itself | `contract/`, `kernel/` | M7 experiments |
 | K5 | A call can be reused while its children still point at it (`kernel/simulation.ts:427`) | Keep a call out of the pool until its children have finished. Add `call.isOpen` so a late child can tell its parent was already answered | `kernel/simulation.ts` only | Before the first component that answers early |
 | K6 | Two scratch numbers per side of a call (`contract/request.ts:35`) | Expose a stable per-call index so a component can keep its own typed arrays | `contract/request.ts` | Search cluster, API gateway |
@@ -484,7 +484,7 @@ silently unmodelled.
 | --- | --- | --- | --- | --- |
 | K1 Request payload | Open | | | |
 | K2 Reply value | Open | | | |
-| K3 Link latency | Open | | | |
+| K3 Link latency | Partly: connection settings landed; latency open | Load balancer weights | `contract/port.ts`, `contract/context.ts`, `kernel/design-graph.ts`, `kernel/simulation.ts` | `tests/kernel/design-graph.test.ts`, `tests/kernel/simulation.test.ts` |
 | K4 Faults | Open | | | |
 | K5 Call lifetime | Open | | | |
 | K6 Per-call index | Open | | | |

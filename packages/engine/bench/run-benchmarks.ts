@@ -21,11 +21,35 @@ function buildDesign(ratePerSecond: number): SimulationDesign {
   };
 }
 
+/** A client behind a least-time load balancer spreading over three weighted API servers. */
+function buildLoadBalancedDesign(ratePerSecond: number): SimulationDesign {
+  const weights = [1, 2, 1];
+  return {
+    schemaVersion: 1,
+    run: { durationSeconds: 60, seed: 1 },
+    nodes: [
+      { id: "client", type: "client", config: { ratePerSecond } },
+      { id: "lb", type: "load-balancer", config: { algorithm: "least-time" } },
+      ...weights.map((_weight, index) => ({ id: `api-${index}`, type: "api-server" })),
+    ],
+    edges: [
+      { id: "client-to-lb", from: { node: "client", port: "out" }, to: { node: "lb", port: "in" } },
+      ...weights.map((weight, index) => ({
+        id: `lb-to-api-${index}`,
+        from: { node: "lb", port: "out" },
+        to: { node: `api-${index}`, port: "in" },
+        config: { weight },
+      })),
+    ],
+  };
+}
+
 // The API server's default capacity is 5,000 requests/s, so the second scenario spends
 // the whole run saturated: full queue, rejections, and close to the 2M event budget.
 const scenarios = [
   { name: "steady: 1,000 requests/s for 60 s", design: buildDesign(1000) },
   { name: "saturated: 8,000 requests/s for 60 s", design: buildDesign(8000) },
+  { name: "load balanced: 3,000 requests/s over 3 servers for 60 s", design: buildLoadBalancedDesign(3000) },
 ];
 
 const minEventsPerSecond = Number(

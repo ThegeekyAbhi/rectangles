@@ -4,11 +4,11 @@ import { temporal } from "zundo";
 import { createStore } from "zustand/vanilla";
 import { uniqueName } from "@/lib/unique-name";
 import { readClipboard, writeClipboard } from "../lib/clipboard";
-import { defaultConfigFor, findComponentDefinition } from "../lib/component-catalog";
+import { completeConnectionConfig, defaultConfigFor, findComponentDefinition } from "../lib/component-catalog";
 import { isWellFormedConnection } from "../lib/connection-check";
 import { EDGE_TYPE, isSameDocument } from "../lib/document-conversion";
 import { pickCopiedElements, placePastedElements } from "../lib/paste-placement";
-import type { BoardElements, ComponentConfig, ComponentNode, ConnectionEdge } from "../types";
+import type { BoardElements, ComponentConfig, ComponentNode, ConnectionConfig, ConnectionEdge } from "../types";
 
 const HISTORY_LIMIT = 100;
 
@@ -22,6 +22,7 @@ export interface WhiteboardState extends BoardElements {
   addNode(componentType: string, position: XYPosition): string;
   renameNode(nodeId: string, label: string): void;
   setNodeConfig(nodeId: string, config: ComponentConfig): void;
+  setEdgeConfig(edgeId: string, config: ConnectionConfig): void;
   /** Removes nodes and edges, plus every edge attached to a removed node. */
   deleteElements(nodeIds: readonly string[], edgeIds: readonly string[]): void;
   deleteSelection(): void;
@@ -106,6 +107,7 @@ export function createWhiteboardStore(initial: BoardElements) {
             if (!isWellFormedConnection(connection, nodes, edges)) {
               return;
             }
+            const sourceType = nodes.find((node) => node.id === connection.source)?.data.componentType ?? "";
             const edge: ConnectionEdge = {
               id: crypto.randomUUID(),
               type: EDGE_TYPE,
@@ -113,6 +115,7 @@ export function createWhiteboardStore(initial: BoardElements) {
               sourceHandle: connection.sourceHandle,
               target: connection.target,
               targetHandle: connection.targetHandle,
+              data: { config: completeConnectionConfig(sourceType, connection.sourceHandle ?? "", {}) },
             };
             set({ edges: [...edges, edge] });
           },
@@ -146,6 +149,12 @@ export function createWhiteboardStore(initial: BoardElements) {
           setNodeConfig(nodeId, config) {
             set((state) => ({
               nodes: updateNodeData(state.nodes, nodeId, (data) => ({ ...data, config })),
+            }));
+          },
+
+          setEdgeConfig(edgeId, config) {
+            set((state) => ({
+              edges: state.edges.map((edge) => (edge.id === edgeId ? { ...edge, data: { ...edge.data, config } } : edge)),
             }));
           },
 

@@ -1,6 +1,7 @@
 import type { ComponentDefinition } from "@rectangles/engine";
+import { findComponentDefinition } from "./component-catalog";
 
-/** A section of the library. Each has its own colour except `other`. */
+/** A section of the library. Each has its own colour except `other`, for unknown types. */
 export type ComponentCategoryId = "traffic" | "compute" | "data" | "messaging" | "other";
 
 /** The library's sections, in the order a request meets them. */
@@ -12,11 +13,6 @@ const CATEGORY_NAMES: Readonly<Record<ComponentCategoryId, string>> = {
   other: "Other",
 };
 
-const CATEGORY_BY_COMPONENT_TYPE: Readonly<Record<string, ComponentCategoryId>> = {
-  client: "traffic",
-  "api-server": "compute",
-};
-
 export interface ComponentCategory {
   readonly id: ComponentCategoryId;
   readonly name: string;
@@ -24,11 +20,11 @@ export interface ComponentCategory {
 }
 
 /**
- * The section a component belongs to. A type without an entry is `other`, so a
- * component newly added to the engine still shows up.
+ * The section a component belongs to, as its engine definition declares. A type this
+ * version does not know (kept on the board from elsewhere) is `other`.
  */
 export function categoryOf(componentType: string): ComponentCategoryId {
-  return CATEGORY_BY_COMPONENT_TYPE[componentType] ?? "other";
+  return findComponentDefinition(componentType)?.category ?? "other";
 }
 
 /** Tailwind class colouring each section's icons. Written out in full so Tailwind finds them. */
