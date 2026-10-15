@@ -69,23 +69,28 @@ export function isSameDocument(left: BoardElements, right: BoardElements): boole
   if (left.nodes === right.nodes && left.edges === right.edges) {
     return true;
   }
-  if (left.nodes.length !== right.nodes.length || left.edges.length !== right.edges.length) {
-    return false;
-  }
-  const hasSameNodes = left.nodes.every((node, index) => {
-    const other = right.nodes[index];
-    return (
-      other !== undefined &&
-      node.id === other.id &&
-      node.data === other.data &&
-      node.position.x === other.position.x &&
-      node.position.y === other.position.y
-    );
-  });
   return (
-    hasSameNodes &&
-    left.edges.every((edge, index) => {
-      const other = right.edges[index];
+    left.nodes.length === right.nodes.length &&
+    left.nodes.every((node, index) => {
+      const other = right.nodes[index];
+      return (
+        other !== undefined &&
+        node.id === other.id &&
+        node.data === other.data &&
+        node.position.x === other.position.x &&
+        node.position.y === other.position.y
+      );
+    }) &&
+    hasSameConnections(left.edges, right.edges)
+  );
+}
+
+/** Whether two lists of edges join the same ports, in the same order. */
+export function hasSameConnections(left: BoardElements["edges"], right: BoardElements["edges"]): boolean {
+  return (
+    left.length === right.length &&
+    left.every((edge, index) => {
+      const other = right[index];
       return (
         other !== undefined &&
         edge.id === other.id &&

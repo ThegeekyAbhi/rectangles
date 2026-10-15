@@ -1,4 +1,5 @@
 import type { SampleStatistics, TrafficSummary } from "@rectangles/engine";
+import { latestCompleteWindow } from "./window-readings";
 
 /** The whole system's headline figures. `null` where there is nothing to show yet. */
 export interface OverviewFigures {
@@ -30,7 +31,7 @@ export function overviewFigures(
       latencyMs: wholeRunLatency,
     };
   }
-  const latest = summary.windows.at(-2);
+  const latest = latestCompleteWindow(summary.windows);
   if (latest === undefined) {
     return {
       scope: "Latest second",

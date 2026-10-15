@@ -9,11 +9,6 @@ export interface BoardPanels {
   /** Whether each panel is hidden right now. */
   readonly collapsed: Readonly<Record<BoardPanelName, boolean>>;
   /**
-   * Whether the inspector may appear. While it may, it shows whenever something is
-   * selected, so it can be enabled and still be hidden.
-   */
-  readonly isInspectorEnabled: boolean;
-  /**
    * Hides a panel that is showing, or brings a hidden one back at its last size. For
    * the inspector, turns it off or on.
    */

@@ -43,6 +43,11 @@ export interface RunSummary extends TrafficSummary {
 
 const COUNT_KEYS = ["offered", "succeeded", "rejected", "failed", "timedOut"] as const;
 type CountKey = (typeof COUNT_KEYS)[number];
+type Counts = Record<CountKey, number>;
+
+const COUNT_KEY_BY_METRIC_ID: ReadonlyMap<string, CountKey> = new Map(
+  COUNT_KEYS.map((key) => [END_TO_END_METRIC_IDS[key], key]),
+);
 
 interface EndToEndSeries {
   readonly counters: Readonly<Record<CountKey, CounterSeries[]>>;
@@ -52,19 +57,16 @@ interface EndToEndSeries {
 
 /** Gathers the end-to-end metrics of every node that declares them. */
 function collectEndToEndSeries(recorder: MetricRecorder): EndToEndSeries {
-  const counters: Record<CountKey, CounterSeries[]> = {
-    offered: [],
-    succeeded: [],
-    rejected: [],
-    failed: [],
-    timedOut: [],
-  };
+  const counters = {} as Record<CountKey, CounterSeries[]>;
+  for (const key of COUNT_KEYS) {
+    counters[key] = [];
+  }
   let inFlight = 0;
   const latencies: SampleSeries[] = [];
 
   for (const { spec, series } of recorder.metrics) {
     if (series.kind === "counter") {
-      const key = COUNT_KEYS.find((candidate) => END_TO_END_METRIC_IDS[candidate] === spec.id);
+      const key = COUNT_KEY_BY_METRIC_ID.get(spec.id);
       if (key !== undefined) {
         counters[key].push(series);
       }
@@ -96,12 +98,20 @@ function joinSamples(parts: readonly Float64Array[]): Float64Array {
   return joined;
 }
 
-function sumOf(seriesList: readonly CounterSeries[], pick: (series: CounterSeries) => number): number {
-  let sum = 0;
-  for (const series of seriesList) {
-    sum += pick(series);
+/** Each count summed across its counters, reading each counter with `pick`. */
+function sumCounts(
+  counters: Readonly<Record<CountKey, readonly CounterSeries[]>>,
+  pick: (series: CounterSeries) => number,
+): Counts {
+  const counts = {} as Counts;
+  for (const key of COUNT_KEYS) {
+    let sum = 0;
+    for (const series of counters[key]) {
+      sum += pick(series);
+    }
+    counts[key] = sum;
   }
-  return sum;
+  return counts;
 }
 
 /**
@@ -134,29 +144,14 @@ export function summariseTraffic(
       sampleOffsets[seriesIndex] = end;
       return series.values.subarray(start, end);
     });
-    windows.push({
-      offered: sumOf(counters.offered, inWindow),
-      succeeded: sumOf(counters.succeeded, inWindow),
-      rejected: sumOf(counters.rejected, inWindow),
-      failed: sumOf(counters.failed, inWindow),
-      timedOut: sumOf(counters.timedOut, inWindow),
-      latencyMs: describeSamples(joinSamples(parts)),
-    });
+    windows.push({ ...sumCounts(counters, inWindow), latencyMs: describeSamples(joinSamples(parts)) });
   }
 
-  const total = (series: CounterSeries) => series.total;
-  const offered = sumOf(counters.offered, total);
-  const succeeded = sumOf(counters.succeeded, total);
-  const rejected = sumOf(counters.rejected, total);
-  const failed = sumOf(counters.failed, total);
-  const timedOut = sumOf(counters.timedOut, total);
+  const totals = sumCounts(counters, (series) => series.total);
+  const { offered, succeeded, rejected, failed, timedOut } = totals;
   const seconds = microsToSeconds(nowMicros);
   return {
-    offered,
-    succeeded,
-    rejected,
-    failed,
-    timedOut,
+    ...totals,
     inFlight: endToEnd.inFlight,
     offeredPerSecond: seconds === 0 ? 0 : offered / seconds,
     throughputPerSecond: seconds === 0 ? 0 : succeeded / seconds,

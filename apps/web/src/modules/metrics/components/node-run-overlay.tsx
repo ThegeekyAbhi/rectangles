@@ -2,6 +2,7 @@
 
 import type { MetricSnapshot } from "@rectangles/engine";
 import { CAPACITY_METRIC_IDS } from "@rectangles/engine";
+import { clamp } from "@/lib/clamp";
 import { useRunStore } from "@/modules/simulation";
 import { useIsRunLive } from "../hooks/use-run-reading";
 import type { CapacityState } from "../lib/capacity-state";
@@ -20,7 +21,7 @@ const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
 
 /** A small ring that fills as utilisation rises. */
 function UtilisationRing({ utilisation }: { utilisation: number }) {
-  const filled = Math.min(Math.max(utilisation, 0), 1) * RING_LENGTH;
+  const filled = clamp(utilisation, 0, 1) * RING_LENGTH;
   return (
     <svg viewBox="0 0 14 14" className="size-3.5 -rotate-90" aria-hidden>
       <circle cx="7" cy="7" r={RING_RADIUS} fill="none" strokeWidth="2.5" className="stroke-border" />

@@ -11,14 +11,14 @@ export function PanelToggle({
   shortcut,
   children,
 }: {
-  panel: BoardPanelName;
+  /** The inspector follows the selection, so it has no toggle of this kind. */
+  panel: Exclude<BoardPanelName, "inspector">;
   name: string;
   shortcut: string;
   children: React.ReactNode;
 }) {
-  const { collapsed, isInspectorEnabled, toggle } = useBoardPanels();
-  // The inspector comes and goes with the selection; its button turns that on and off.
-  const isShowing = panel === "inspector" ? isInspectorEnabled : !collapsed[panel];
+  const { collapsed, toggle } = useBoardPanels();
+  const isShowing = !collapsed[panel];
   return (
     <ToolbarButton
       label={`${isShowing ? "Hide" : "Show"} ${name}`}

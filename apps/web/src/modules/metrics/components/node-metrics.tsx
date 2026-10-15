@@ -5,7 +5,7 @@ import { useMemo } from "react";
 import { useRunStore } from "@/modules/simulation";
 import { findComponentDefinition } from "@/modules/whiteboard";
 import { InfoTip } from "@/components/info-tip";
-import type { RunTiming } from "../hooks/use-run-reading";
+import type { RunTiming } from "../lib/window-readings";
 import { metricChart } from "../lib/chart-series";
 import { describeMetric } from "../lib/describe-metric";
 import { MetricChart } from "./metric-chart";

@@ -1,3 +1,5 @@
+import type { SampleStatistics } from "@rectangles/engine";
+
 const wholeNumber = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 const preciseNumber = new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3 });
 const percentage = new Intl.NumberFormat("en-US", { style: "percent", maximumFractionDigits: 1 });
@@ -22,6 +24,15 @@ export function formatMetricValue(value: number | null, unit: string): string {
     return NO_VALUE;
   }
   return unit === "ratio" ? formatPercentage(value) : `${formatNumber(value)} ${unit}`;
+}
+
+/** Chosen percentiles in one line, such as `p50 12 · p95 40 · p99 85 ms`. */
+export function formatPercentiles(
+  statistics: SampleStatistics,
+  unit: string,
+  percentiles: readonly ("p50" | "p95" | "p99")[] = ["p50", "p95", "p99"],
+): string {
+  return `${percentiles.map((percentile) => `${percentile} ${formatNumber(statistics[percentile])}`).join(" · ")} ${unit}`;
 }
 
 /** A rate, such as `480 requests/s`. */

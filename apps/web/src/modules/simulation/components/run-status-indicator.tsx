@@ -2,8 +2,10 @@
 
 import type { Icon } from "@phosphor-icons/react";
 import { CheckCircleIcon, PauseCircleIcon, StopCircleIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
+import { clamp } from "@/lib/clamp";
 import { cn } from "@/lib/utils";
 import { describeRunEnd, formatSimulatedSeconds } from "../lib/run-status-text";
+import { isRunInProgress } from "../store/run-store";
 import { useRunStore } from "../store/run-store-context";
 
 /** How far through the run the simulation is, as a thin bar. */
@@ -12,7 +14,7 @@ function RunProgress({ fraction }: { fraction: number }) {
     <span className="h-1 w-20 overflow-hidden rounded-full bg-muted" aria-hidden>
       <span
         className="block h-full rounded-full bg-foreground transition-[width] duration-200"
-        style={{ width: `${Math.min(Math.max(fraction, 0), 1) * 100}%` }}
+        style={{ width: `${clamp(fraction, 0, 1) * 100}%` }}
       />
     </span>
   );
@@ -32,7 +34,8 @@ export function RunStatusIndicator() {
   let text: string;
   let StatusIcon: Icon | null = null;
   let iconClass = "text-muted-foreground";
-  if (status === "running" || status === "paused") {
+  const isInProgress = isRunInProgress(status);
+  if (isInProgress) {
     const progress = `${formatSimulatedSeconds(simulatedSeconds)} of ${formatSimulatedSeconds(durationSeconds)}`;
     text = status === "paused" ? `Paused · ${progress}` : progress;
     StatusIcon = status === "paused" ? PauseCircleIcon : null;
@@ -54,7 +57,6 @@ export function RunStatusIndicator() {
   } else {
     return null;
   }
-  const isInProgress = status === "running" || status === "paused";
 
   return (
     <span className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground tabular-nums">

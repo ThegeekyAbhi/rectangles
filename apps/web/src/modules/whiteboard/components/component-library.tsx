@@ -3,7 +3,7 @@
 import { DotsSixVerticalIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import type { ComponentDefinition } from "@rectangles/engine";
 import { useMemo, useState } from "react";
-import { Input } from "@/components/ui/input";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAddComponent } from "../hooks/use-add-component";
 import { useLibraryDrag } from "../hooks/use-library-drag";
@@ -67,20 +67,18 @@ export function ComponentLibrary() {
         <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
           Components
         </h2>
-        <div className="relative mt-2">
-          <MagnifyingGlassIcon
-            className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
+        <InputGroup className="mt-2">
+          <InputGroupAddon align="inline-start">
+            <MagnifyingGlassIcon aria-hidden />
+          </InputGroupAddon>
+          <InputGroupInput
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search"
             aria-label="Search components"
-            className="pl-8"
           />
-        </div>
+        </InputGroup>
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 pb-2">

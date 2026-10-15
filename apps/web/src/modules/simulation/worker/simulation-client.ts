@@ -1,18 +1,12 @@
-import type { SimulationDesign } from "@rectangles/engine";
 import type { Remote } from "comlink";
 import { proxy, releaseProxy, wrap } from "comlink";
 import type { RunUpdate, SimulationWorkerApi } from "./simulation-worker-api";
 
 /** The page's handle on the simulation worker. */
-export interface SimulationClient {
-  start(design: SimulationDesign, onUpdate: (update: RunUpdate) => void): void;
-  pause(): void;
-  resume(): void;
-  skipToEnd(): void;
-  stop(): void;
+export type SimulationClient = SimulationWorkerApi & {
   /** Shuts the worker down. A later `start` begins a fresh one. */
   dispose(): void;
-}
+};
 
 /**
  * Runs simulations off the main thread, so the board stays responsive during a run.

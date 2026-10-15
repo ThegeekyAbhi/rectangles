@@ -4,10 +4,10 @@ import type { RunSnapshot, SampleStatistics } from "@rectangles/engine";
 import { useMemo } from "react";
 import { useRunStore } from "@/modules/simulation";
 import { InfoTip } from "@/components/info-tip";
-import type { RunTiming } from "../hooks/use-run-reading";
+import type { RunTiming } from "../lib/window-readings";
 import { latencyChart, trafficRateChart } from "../lib/chart-series";
 import { overviewFigures } from "../lib/overview-figures";
-import { formatMetricValue, formatNumber, formatPercentage, formatPerSecond, NO_VALUE } from "../lib/format-metric";
+import { formatMetricValue, formatNumber, formatPercentage, formatPercentiles, formatPerSecond, NO_VALUE } from "../lib/format-metric";
 import { MetricChart } from "./metric-chart";
 
 /** What each whole-system figure means. Shown on hover, word for word. */
@@ -49,7 +49,7 @@ function Tile({
 function latencyDetail(latency: SampleStatistics | null): string | undefined {
   return latency === null || latency.count === 0
     ? undefined
-    : `p95 ${formatNumber(latency.p95)} · p99 ${formatNumber(latency.p99)} ms`;
+    : formatPercentiles(latency, "ms", ["p95", "p99"]);
 }
 
 /**

@@ -50,11 +50,6 @@ export class EventQueue {
     }
   }
 
-  /** Number of events in the heap, including cancelled ones not yet dropped. */
-  get size(): number {
-    return this.heapSize;
-  }
-
   /** Schedules an event and returns a handle that `cancel` accepts. */
   push(
     timeMicros: Micros,
@@ -187,20 +182,16 @@ export class EventQueue {
     if (newCapacity > MAX_PENDING_EVENTS) {
       throw new RangeError(`More than ${MAX_PENDING_EVENTS} events are pending at once.`);
     }
-    this.timeMicros = growFloat64(this.timeMicros, newCapacity);
-    this.argument = growFloat64(this.argument, newCapacity);
-    this.sequence = growFloat64(this.sequence, newCapacity).fill(NO_SEQUENCE, oldCapacity);
-    this.nodeIndex = growInt32(this.nodeIndex, newCapacity);
-    this.callSlot = growInt32(this.callSlot, newCapacity);
-    this.timerKind = growInt32(this.timerKind, newCapacity);
-    this.heap = growInt32(this.heap, newCapacity);
-    this.freeSlots = growInt32(this.freeSlots, newCapacity);
-    const kind = new Uint8Array(newCapacity);
-    kind.set(this.kind);
-    this.kind = kind;
-    const isCancelled = new Uint8Array(newCapacity);
-    isCancelled.set(this.isCancelled);
-    this.isCancelled = isCancelled;
+    this.timeMicros = grown(this.timeMicros, newCapacity);
+    this.argument = grown(this.argument, newCapacity);
+    this.sequence = grown(this.sequence, newCapacity).fill(NO_SEQUENCE, oldCapacity);
+    this.nodeIndex = grown(this.nodeIndex, newCapacity);
+    this.callSlot = grown(this.callSlot, newCapacity);
+    this.timerKind = grown(this.timerKind, newCapacity);
+    this.heap = grown(this.heap, newCapacity);
+    this.freeSlots = grown(this.freeSlots, newCapacity);
+    this.kind = grown(this.kind, newCapacity);
+    this.isCancelled = grown(this.isCancelled, newCapacity);
     for (let slot = newCapacity - 1; slot >= oldCapacity; slot--) {
       this.freeSlots[this.freeCount++] = slot;
     }
@@ -208,14 +199,9 @@ export class EventQueue {
   }
 }
 
-function growFloat64(source: Float64Array, capacity: number): Float64Array {
-  const grown = new Float64Array(capacity);
-  grown.set(source);
-  return grown;
-}
-
-function growInt32(source: Int32Array, capacity: number): Int32Array {
-  const grown = new Int32Array(capacity);
-  grown.set(source);
-  return grown;
+/** A copy of `source` in a new array of the same type and the given capacity. */
+function grown<Typed extends Float64Array | Int32Array | Uint8Array>(source: Typed, capacity: number): Typed {
+  const copy = new (source.constructor as new (length: number) => Typed)(capacity);
+  copy.set(source);
+  return copy;
 }

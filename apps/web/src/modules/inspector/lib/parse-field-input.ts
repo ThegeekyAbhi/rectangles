@@ -1,4 +1,4 @@
-import type { ConfigFields } from "@rectangles/engine";
+import type { ConfigFields, ValidatedConfig } from "@rectangles/engine";
 import { validateConfig } from "@rectangles/engine";
 
 export type FieldInput =
@@ -12,7 +12,7 @@ export type FieldInput =
  */
 export function parseNumberField(
   fields: ConfigFields,
-  config: Readonly<Record<string, number | string>>,
+  config: ValidatedConfig,
   fieldName: string,
   text: string,
 ): FieldInput {
@@ -29,7 +29,7 @@ export function parseNumberField(
 /** Whether a field applies, given the values of the fields it depends on. */
 export function isFieldRelevant(
   fields: ConfigFields,
-  config: Readonly<Record<string, number | string>>,
+  config: ValidatedConfig,
   fieldName: string,
 ): boolean {
   const relevance = fields[fieldName]?.relevantWhen;

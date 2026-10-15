@@ -116,10 +116,7 @@ export function BoardPanelsProvider({ children }: { children: React.ReactNode })
     }
   }, [shouldShowInspector, expand]);
 
-  const value = useMemo(
-    () => ({ ...panels, collapsed, isInspectorEnabled }),
-    [panels, collapsed, isInspectorEnabled],
-  );
+  const value = useMemo(() => ({ ...panels, collapsed }), [panels, collapsed]);
 
   return (
     <PanelWiringContext value={wiring}>

@@ -1,7 +1,8 @@
+import type { ValidatedConfig } from "@rectangles/engine";
 import type { Edge, Node } from "@xyflow/react";
 
 /** A component's settings, as the engine validates them. */
-export type ComponentConfig = Readonly<Record<string, number | string>>;
+export type ComponentConfig = ValidatedConfig;
 
 export type ComponentNodeData = {
   /** Component type, as registered in the engine. */

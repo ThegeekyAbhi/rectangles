@@ -1,5 +1,6 @@
 import type { ProjectDocument } from "@rectangles/schema";
 import { createEmptyDocument, parseProjectDocument } from "@rectangles/schema";
+import type { StoredDocument } from "../lib/local-database";
 import { openLocalDatabase } from "../lib/local-database";
 import { copyName, uniqueName } from "@/lib/unique-name";
 import type { LoadedProject, ProjectSummary } from "../types";
@@ -29,12 +30,13 @@ async function activeNames(): Promise<string[]> {
   return (await listProjects()).map((project) => project.name);
 }
 
-export async function createProject(): Promise<ProjectSummary> {
+/** Stores a new project, under a fresh id, with the given board as it is stored. */
+async function insertProject(name: string, document: StoredDocument["document"]): Promise<ProjectSummary> {
   const database = await openLocalDatabase();
   const now = Date.now();
   const project: ProjectSummary = {
     id: crypto.randomUUID(),
-    name: uniqueName(DEFAULT_PROJECT_NAME, await activeNames()),
+    name,
     createdAt: now,
     updatedAt: now,
     revision: 0,
@@ -43,10 +45,14 @@ export async function createProject(): Promise<ProjectSummary> {
   const transaction = database.transaction(["projects", "documents"], "readwrite");
   await Promise.all([
     transaction.objectStore("projects").put(project),
-    transaction.objectStore("documents").put({ projectId: project.id, document: createEmptyDocument() }),
+    transaction.objectStore("documents").put({ projectId: project.id, document }),
     transaction.done,
   ]);
   return project;
+}
+
+export async function createProject(): Promise<ProjectSummary> {
+  return insertProject(uniqueName(DEFAULT_PROJECT_NAME, await activeNames()), createEmptyDocument());
 }
 
 async function updateProject(
@@ -83,25 +89,10 @@ export async function duplicateProject(projectId: string): Promise<ProjectSummar
   if (original === undefined) {
     throw new Error("This project no longer exists.");
   }
-  const now = Date.now();
-  const copy: ProjectSummary = {
-    id: crypto.randomUUID(),
-    name: copyName(original.name, names),
-    createdAt: now,
-    updatedAt: now,
-    revision: 0,
-    deletedAt: null,
-  };
-  const transaction = database.transaction(["projects", "documents"], "readwrite");
-  await Promise.all([
-    transaction.objectStore("projects").put(copy),
-    transaction.objectStore("documents").put({
-      projectId: copy.id,
-      document: structuredClone(stored?.document ?? createEmptyDocument()),
-    }),
-    transaction.done,
-  ]);
-  return copy;
+  return insertProject(
+    copyName(original.name, names),
+    structuredClone(stored?.document ?? createEmptyDocument()),
+  );
 }
 
 /** Hides a project. It stays restorable until `purgeProject` removes it for good. */

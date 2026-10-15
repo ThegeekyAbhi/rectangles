@@ -1,12 +1,7 @@
 import type { MetricResult, MetricSnapshot } from "@rectangles/engine";
-import { formatMetricValue, formatNumber, formatPerSecond, NO_VALUE } from "./format-metric";
-import { currentRate } from "./window-readings";
-
-interface Timing {
-  readonly windowSeconds: number;
-  readonly simulatedSeconds: number;
-  readonly isLive: boolean;
-}
+import { formatMetricValue, formatNumber, formatPercentiles, formatPerSecond, NO_VALUE } from "./format-metric";
+import type { RunTiming } from "./window-readings";
+import { currentRate, latestCompleteWindow } from "./window-readings";
 
 /**
  * A metric's current figures in words. `finished` is the same metric from the finished
@@ -15,7 +10,7 @@ interface Timing {
 export function describeMetric(
   metric: MetricSnapshot,
   finished: MetricResult | undefined,
-  timing: Timing,
+  timing: RunTiming,
 ): string {
   if (metric.kind === "counter") {
     const rate = currentRate({ windows: metric.windows, total: metric.total, ...timing });
@@ -26,9 +21,9 @@ export function describeMetric(
       ? `now ${formatMetricValue(metric.last, metric.unit)} · peak ${formatMetricValue(metric.max, metric.unit)}`
       : `mean ${formatMetricValue(metric.mean, metric.unit)} · peak ${formatMetricValue(metric.max, metric.unit)}`;
   }
-  const statistics = finished?.kind === "sample" ? finished : metric.windows.at(-2);
+  const statistics = finished?.kind === "sample" ? finished : latestCompleteWindow(metric.windows);
   if (statistics === undefined || statistics.count === 0) {
     return metric.count === 0 ? "no samples" : NO_VALUE;
   }
-  return `p50 ${formatNumber(statistics.p50)} · p95 ${formatNumber(statistics.p95)} · p99 ${formatNumber(statistics.p99)} ${metric.unit}`;
+  return formatPercentiles(statistics, metric.unit);
 }

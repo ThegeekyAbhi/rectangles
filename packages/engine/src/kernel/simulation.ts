@@ -13,7 +13,7 @@ import { buildRunSnapshot } from "../metrics/run-snapshot.ts";
 import type { ValidatedConfig } from "./config-validation.ts";
 import type { GraphNode } from "./design-graph.ts";
 import { buildDesignGraph } from "./design-graph.ts";
-import { EventQueue, NO_EVENT } from "./event-queue.ts";
+import { EventQueue } from "./event-queue.ts";
 import { Prng } from "./prng.ts";
 
 export const DEFAULT_MAX_EVENTS = 2_000_000;
@@ -262,10 +262,8 @@ class SimulationEngine implements Simulation {
         break;
       }
 
+      // Never empty: the peek above found a live event before the end of the run.
       const slot = queue.pop();
-      if (slot === NO_EVENT) {
-        continue;
-      }
       const kind = queue.kind[slot];
       const node = this.nodes[queue.nodeIndex[slot] ?? -1];
       const callSlot = queue.callSlot[slot] ?? NO_CALL;

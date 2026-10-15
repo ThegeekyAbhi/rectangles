@@ -1,15 +1,8 @@
-import { useRunStore } from "@/modules/simulation";
-
-/** The timing a reading needs: window length, run length so far, and whether it is live. */
-export interface RunTiming {
-  readonly windowSeconds: number;
-  readonly simulatedSeconds: number;
-  /** `true` while the run is in progress, so the newest window is still filling. */
-  readonly isLive: boolean;
-}
+import { isRunInProgress, useRunStore } from "@/modules/simulation";
+import type { RunTiming } from "../lib/window-readings";
 
 export function useIsRunLive(): boolean {
-  return useRunStore((state) => state.status === "running" || state.status === "paused");
+  return useRunStore((state) => isRunInProgress(state.status));
 }
 
 /** The run's timing, or `null` when there are no metrics to read. */

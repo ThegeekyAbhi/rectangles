@@ -1,3 +1,6 @@
+import { millisecondsToMicros } from "@rectangles/engine";
+import { clamp } from "@/lib/clamp";
+
 /**
  * How long a run takes to watch, in real seconds, whatever length of time it
  * simulates. A ten-minute test and a thirty-second one both play in this long.
@@ -18,6 +21,6 @@ const MAX_TICK_ELAPSED_MS = TICK_MS * 2.5;
  * `durationSeconds` plays back in `PLAYBACK_SECONDS`.
  */
 export function simulatedMicrosFor(durationSeconds: number, elapsedMs: number): number {
-  const countedMs = Math.min(Math.max(elapsedMs, 0), MAX_TICK_ELAPSED_MS);
-  return Math.round((countedMs * 1_000 * durationSeconds) / PLAYBACK_SECONDS);
+  const countedMs = clamp(elapsedMs, 0, MAX_TICK_ELAPSED_MS);
+  return millisecondsToMicros((countedMs * durationSeconds) / PLAYBACK_SECONDS);
 }

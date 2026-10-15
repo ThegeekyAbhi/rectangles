@@ -46,7 +46,8 @@ export function CommandPalette({
   const store = useWhiteboardStoreApi();
   const addComponent = useAddComponent();
   const { fitView } = useReactFlow();
-  const { collapsed, isInspectorEnabled, toggle } = useBoardPanels();
+  const { collapsed, toggle } = useBoardPanels();
+  const isInspectorEnabled = useCanvasViewStore((state) => state.isInspectorEnabled);
   const { setTheme } = useTheme();
   const isMinimapVisible = useCanvasViewStore((state) => state.isMinimapVisible);
   const toggleMinimap = useCanvasViewStore((state) => state.toggleMinimap);

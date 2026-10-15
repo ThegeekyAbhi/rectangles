@@ -1,47 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import { InfoTip } from "@/components/info-tip";
+import { InlineNameInput } from "@/components/inline-name-input";
 import type { ComponentNodeData } from "@/modules/whiteboard";
 import { ComponentIconChip, findComponentDefinition, useWhiteboardStore } from "@/modules/whiteboard";
 import { isFieldRelevant } from "../lib/parse-field-input";
 import { ConfigFieldInput } from "./config-field-input";
-
-/**
- * The component's name, edited in place. It reads as the panel's title until it is
- * pointed at or focused, when it shows that it can be changed.
- */
-function NameInput({ label, onRename }: { label: string; onRename: (label: string) => void }) {
-  const [name, setName] = useState(label);
-
-  const commit = () => {
-    const trimmed = name.trim();
-    if (trimmed === "") {
-      setName(label);
-    } else if (trimmed !== label) {
-      onRename(trimmed);
-    }
-  };
-
-  return (
-    <input
-      aria-label="Name"
-      value={name}
-      maxLength={60}
-      spellCheck={false}
-      className="-mx-1.5 h-7 w-full min-w-0 rounded-md border border-transparent bg-transparent px-1.5 text-sm font-medium outline-none hover:border-input focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-      onChange={(event) => setName(event.target.value)}
-      onBlur={commit}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") {
-          event.currentTarget.blur();
-        } else if (event.key === "Escape") {
-          setName(label);
-        }
-      }}
-    />
-  );
-}
 
 /** What the component is, what it leaves out, all behind one (i). */
 function ComponentAbout({ description, notModeled }: { description: string; notModeled: readonly string[] }) {
@@ -74,7 +38,14 @@ export function NodeInspector({ nodeId, data }: { nodeId: string; data: Componen
         <ComponentIconChip componentType={data.componentType} size="lg" />
         <div className="min-w-0 flex-1">
           {/* Remounting on a new label resets the draft after undo or redo. */}
-          <NameInput key={data.label} label={data.label} onRename={(label) => renameNode(nodeId, label)} />
+          <InlineNameInput
+            key={data.label}
+            value={data.label}
+            ariaLabel="Name"
+            maxLength={60}
+            className="-mx-1.5 w-full"
+            onCommit={(label) => renameNode(nodeId, label)}
+          />
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <span className="truncate">{definition?.label ?? "Unknown component"}</span>
             {definition !== undefined && (

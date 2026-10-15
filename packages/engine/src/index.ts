@@ -14,6 +14,15 @@ export type {
   NumberField,
 } from "./contract/config-field.ts";
 export type { MetricKind, MetricSpec } from "./contract/metric.ts";
+export type { Micros } from "./contract/time-units.ts";
+export {
+  MICROS_PER_MILLISECOND,
+  MICROS_PER_SECOND,
+  microsToMilliseconds,
+  microsToSeconds,
+  millisecondsToMicros,
+  secondsToMicros,
+} from "./contract/time-units.ts";
 export { CAPACITY_METRIC_IDS, END_TO_END_METRIC_IDS } from "./contract/metric.ts";
 export type { PortDirection, PortSpec, Protocol } from "./contract/port.ts";
 export type { Outcome } from "./contract/request.ts";

@@ -11,14 +11,19 @@ export function findComponentDefinition(componentType: string): ComponentDefinit
   return registry.get(componentType)?.definition;
 }
 
-/** A component's config with every field at its default. */
-export function defaultConfigFor(componentType: string): ComponentConfig {
+/** The config with defaults filled in, or `null` for an unknown component or invalid config. */
+function validatedConfig(componentType: string, config: ComponentConfig) {
   const definition = findComponentDefinition(componentType);
   if (definition === undefined) {
-    return {};
+    return null;
   }
-  const validation = validateConfig(definition.configFields, {});
-  return validation.ok ? validation.config : {};
+  const validation = validateConfig(definition.configFields, config);
+  return validation.ok ? { definition, config: validation.config } : null;
+}
+
+/** A component's config with every field at its default. */
+export function defaultConfigFor(componentType: string): ComponentConfig {
+  return completeConfig(componentType, {});
 }
 
 /**
@@ -27,12 +32,7 @@ export function defaultConfigFor(componentType: string): ComponentConfig {
  * so the inspector can show what is wrong instead of silently changing it.
  */
 export function completeConfig(componentType: string, config: ComponentConfig): ComponentConfig {
-  const definition = findComponentDefinition(componentType);
-  if (definition === undefined) {
-    return config;
-  }
-  const validation = validateConfig(definition.configFields, config);
-  return validation.ok ? validation.config : config;
+  return validatedConfig(componentType, config)?.config ?? config;
 }
 
 /**
@@ -40,10 +40,6 @@ export function completeConfig(componentType: string, config: ComponentConfig): 
  * component itself. `null` for an unknown component or settings that are not valid.
  */
 export function summariseConfig(componentType: string, config: ComponentConfig): string | null {
-  const definition = findComponentDefinition(componentType);
-  if (definition === undefined) {
-    return null;
-  }
-  const validation = validateConfig(definition.configFields, config);
-  return validation.ok ? definition.summarise(validation.config) : null;
+  const validated = validatedConfig(componentType, config);
+  return validated === null ? null : validated.definition.summarise(validated.config);
 }

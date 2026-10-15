@@ -1,50 +1,30 @@
 "use client";
 
 import { MagnifyingGlassIcon, SidebarSimpleIcon } from "@phosphor-icons/react";
-import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { InlineNameInput } from "@/components/inline-name-input";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import type { ProjectSummary } from "@/modules/projects";
-import { MAX_PROJECT_NAME_LENGTH, projectKeys, renameProject } from "@/modules/projects";
+import { MAX_PROJECT_NAME_LENGTH, useRenameProject } from "@/modules/projects";
 import type { SaveStatus as SaveStatusValue } from "../hooks/use-autosave";
 import { PanelToggle } from "./panel-toggle";
 import { SaveStatus } from "./save-status";
 
-/** The project's name, editable in place. Enter or leaving the field saves it. */
+/** The project's name, editable in place. */
 function ProjectName({ project }: { project: ProjectSummary }) {
-  const queryClient = useQueryClient();
+  const renameProject = useRenameProject();
   const [savedName, setSavedName] = useState(project.name);
-  const [name, setName] = useState(project.name);
-
-  const commit = () => {
-    if (name.trim() === "" || name.trim() === savedName) {
-      setName(savedName);
-      return;
-    }
-    void renameProject(project.id, name).then((renamed) => {
-      setSavedName(renamed.name);
-      setName(renamed.name);
-      void queryClient.invalidateQueries({ queryKey: projectKeys.list() });
-    });
-  };
-
   return (
-    <input
-      value={name}
+    <InlineNameInput
+      key={savedName}
+      value={savedName}
+      ariaLabel="Project name"
       maxLength={MAX_PROJECT_NAME_LENGTH}
-      aria-label="Project name"
-      className="h-7 w-56 min-w-0 truncate rounded-md border border-transparent bg-transparent px-1.5 text-sm font-medium outline-none hover:border-border focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
-      onChange={(event) => setName(event.target.value)}
-      onBlur={commit}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") {
-          event.currentTarget.blur();
-        } else if (event.key === "Escape") {
-          setName(savedName);
-          event.currentTarget.blur();
-        }
-      }}
+      className="w-56 truncate"
+      onCommit={(name) =>
+        renameProject.mutate({ projectId: project.id, name }, { onSuccess: (renamed) => setSavedName(renamed.name) })
+      }
     />
   );
 }

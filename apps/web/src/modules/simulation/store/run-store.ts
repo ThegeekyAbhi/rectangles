@@ -12,6 +12,16 @@ import type { RunUpdate } from "../worker/simulation-worker-api";
  */
 export type RunStatus = "idle" | "running" | "paused" | "finished" | "failed";
 
+/** Whether a run is under way, playing or paused. */
+export function isRunInProgress(status: RunStatus): boolean {
+  return status === "running" || status === "paused";
+}
+
+/** Whether the latest run left anything to show: metrics or a failure. */
+export function hasRunResults(state: Pick<RunState, "metrics" | "failure">): boolean {
+  return state.metrics !== null || state.failure !== null;
+}
+
 /** The lengths of test on offer, in simulated seconds. */
 export const RUN_DURATIONS = [30, 60, 120, 300, 600] as const;
 export const DEFAULT_RUN_DURATION = 60;
@@ -58,7 +68,7 @@ export function createRunStore() {
 
     receive(update) {
       const { status, metrics } = get();
-      if (status !== "running" && status !== "paused") {
+      if (!isRunInProgress(status)) {
         return;
       }
       if (update.kind === "snapshot") {

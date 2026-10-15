@@ -8,7 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useRunBlocker } from "../hooks/use-run-blocker";
 import { useSimulationRun } from "../hooks/use-simulation-run";
 import { describeDuration } from "../lib/run-status-text";
-import { RUN_DURATIONS } from "../store/run-store";
+import { hasRunResults, isRunInProgress, RUN_DURATIONS } from "../store/run-store";
 import { useRunStore } from "../store/run-store-context";
 
 const RUN_BLOCKER_ID = "run-blocker";
@@ -84,14 +84,14 @@ function DurationSelect({ disabled }: { disabled: boolean }) {
  */
 export function RunControls() {
   const status = useRunStore((state) => state.status);
-  const hasResults = useRunStore((state) => state.metrics !== null || state.failure !== null);
+  const hasResults = useRunStore(hasRunResults);
   const blocker = useRunBlocker();
   const { run, pause, resume, skipToEnd, stop } = useSimulationRun();
-  const isRunInProgress = status === "running" || status === "paused";
+  const isInProgress = isRunInProgress(status);
 
   return (
     <div className="flex items-center gap-1">
-      {isRunInProgress ? (
+      {isInProgress ? (
         <>
           {status === "running" ? (
             <Button variant="outline" size="sm" onClick={pause}>
@@ -118,7 +118,7 @@ export function RunControls() {
           {hasResults ? "Run again" : "Run"}
         </RunButton>
       )}
-      <DurationSelect disabled={isRunInProgress} />
+      <DurationSelect disabled={isInProgress} />
       <Separator orientation="vertical" className="mx-1 h-5!" />
     </div>
   );
