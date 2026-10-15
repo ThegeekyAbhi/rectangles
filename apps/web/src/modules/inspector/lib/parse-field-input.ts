@@ -41,3 +41,13 @@ export function optionLabel(option: string): string {
   const words = option.replaceAll("-", " ");
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
+
+/** Short forms for units too long to sit beside a number in a narrow field. */
+const SHORT_UNITS: Readonly<Record<string, string>> = {
+  "requests/s": "req/s",
+};
+
+/** A unit as shown inside a field, such as `req/s` for `requests/s`. */
+export function unitLabel(unit: string): string {
+  return SHORT_UNITS[unit] ?? unit;
+}

@@ -1,11 +1,8 @@
 import type { XYPosition } from "@xyflow/react";
 import { useReactFlow, useStoreApi } from "@xyflow/react";
 import { useCallback } from "react";
-import { GRID_SIZE, NODE_WIDTH } from "../lib/component-visuals";
+import { GRID_SIZE, NODE_HEIGHT, NODE_WIDTH } from "../lib/component-visuals";
 import { useWhiteboardStoreApi } from "../store/whiteboard-store-context";
-
-/** Roughly half a node's height; used to centre a new node on a point. */
-const HALF_NODE_HEIGHT = GRID_SIZE * 2;
 
 function snapToGrid(value: number): number {
   return Math.round(value / GRID_SIZE) * GRID_SIZE;
@@ -32,7 +29,7 @@ export function useAddComponent() {
       const centre = screenToFlowPosition(point);
       const position = {
         x: snapToGrid(centre.x - NODE_WIDTH / 2),
-        y: snapToGrid(centre.y - HALF_NODE_HEIGHT),
+        y: snapToGrid(centre.y - NODE_HEIGHT / 2),
       };
       // Step down and right until the spot is free, so repeated adds never stack.
       const { nodes, addNode } = store.getState();

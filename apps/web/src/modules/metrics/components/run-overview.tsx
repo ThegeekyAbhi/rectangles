@@ -3,12 +3,12 @@
 import type { RunSnapshot, SampleStatistics } from "@rectangles/engine";
 import { useMemo } from "react";
 import { useRunStore } from "@/modules/simulation";
+import { InfoTip } from "@/components/info-tip";
 import type { RunTiming } from "../hooks/use-run-reading";
 import { latencyChart, trafficRateChart } from "../lib/chart-series";
 import { overviewFigures } from "../lib/overview-figures";
 import { formatMetricValue, formatNumber, formatPercentage, formatPerSecond, NO_VALUE } from "../lib/format-metric";
 import { MetricChart } from "./metric-chart";
-import { MetricDefinition } from "./metric-definition";
 
 /** What each whole-system figure means. Shown on hover, word for word. */
 const DEFINITIONS = {
@@ -34,7 +34,7 @@ function Tile({
     <div className="min-w-0 rounded-lg border p-3" data-slot="run-tile" data-metric={name}>
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
         {name}
-        <MetricDefinition name={name} definition={definition} />
+        <InfoTip label={`What ${name} means`}>{definition}</InfoTip>
       </div>
       <div className="mt-1 truncate text-lg leading-6 font-medium tabular-nums">{value}</div>
       {detail !== undefined && (

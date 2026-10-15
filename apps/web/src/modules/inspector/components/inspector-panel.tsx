@@ -10,7 +10,7 @@ import { NodeInspector } from "./node-inspector";
 function InspectorHint({ title, children }: { title: string; children?: React.ReactNode }) {
   return (
     <div className="p-4">
-      <h2 className="text-sm font-medium">{title}</h2>
+      <h2 className="pr-7 text-sm font-medium">{title}</h2>
       {children}
     </div>
   );

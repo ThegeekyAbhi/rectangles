@@ -1,4 +1,4 @@
-export { ComponentIcon } from "./components/component-icon";
+export { ComponentIconChip } from "./components/component-icon-chip";
 export { Whiteboard, WhiteboardSkeleton } from "./components/whiteboard";
 export { findComponentDefinition } from "./lib/component-catalog";
 export { useBoardPanels } from "./hooks/use-board-panels";

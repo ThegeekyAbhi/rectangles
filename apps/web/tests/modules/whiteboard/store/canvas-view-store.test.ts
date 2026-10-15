@@ -6,7 +6,12 @@ const STORAGE_KEY = "rectangles-canvas-view";
 describe("canvas view store", () => {
   beforeEach(() => {
     localStorage.clear();
-    useCanvasViewStore.setState({ isMinimapVisible: true, isInspectorEnabled: true, panelSizes: {} });
+    useCanvasViewStore.setState({
+      isMinimapVisible: true,
+      isInspectorEnabled: true,
+      isCanvasToolbarCollapsed: false,
+      panelSizes: {},
+    });
   });
 
   it("shows the minimap until it is hidden", () => {
@@ -15,6 +20,13 @@ describe("canvas view store", () => {
     expect(useCanvasViewStore.getState().isMinimapVisible).toBe(false);
     useCanvasViewStore.getState().toggleMinimap();
     expect(useCanvasViewStore.getState().isMinimapVisible).toBe(true);
+  });
+
+  it("folds the canvas toolbar down and back", () => {
+    useCanvasViewStore.getState().toggleCanvasToolbar();
+    expect(useCanvasViewStore.getState().isCanvasToolbarCollapsed).toBe(true);
+    useCanvasViewStore.getState().toggleCanvasToolbar();
+    expect(useCanvasViewStore.getState().isCanvasToolbarCollapsed).toBe(false);
   });
 
   it("saves the choice in the browser", () => {

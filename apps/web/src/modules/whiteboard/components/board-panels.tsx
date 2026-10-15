@@ -12,7 +12,7 @@ import { useWhiteboardStore } from "../store/whiteboard-store-context";
 /** Sizes in pixels. A panel dragged narrower than its minimum hides completely. */
 const PANEL_SIZES = {
   library: { initial: 240, min: 200, max: 400 },
-  inspector: { initial: 288, min: 240, max: 480 },
+  inspector: { initial: 320, min: 240, max: 480 },
   results: { initial: 320, min: 160, max: "75%" },
 } as const;
 

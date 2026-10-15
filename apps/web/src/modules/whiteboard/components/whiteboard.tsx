@@ -1,6 +1,6 @@
 "use client";
 
-import { WarningCircleIcon } from "@phosphor-icons/react";
+import { SidebarSimpleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import type { ProjectDocument } from "@rectangles/schema";
 import { ReactFlowProvider } from "@xyflow/react";
 import Link from "next/link";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import type { ProjectSummary } from "@/modules/projects";
 import { useLoadedProject } from "@/modules/projects";
 import { useAutosave } from "../hooks/use-autosave";
+import { useBoardPanels } from "../hooks/use-board-panels";
 import { useWhiteboardShortcuts } from "../hooks/use-whiteboard-shortcuts";
 import { documentToElements } from "../lib/document-conversion";
 import { WhiteboardStoreProvider } from "../store/whiteboard-store-context";
@@ -17,6 +18,7 @@ import type { CanvasSlots } from "./canvas-slots";
 import { CanvasSlotsProvider } from "./canvas-slots";
 import { CommandPalette } from "./command-palette";
 import { ComponentLibrary } from "./component-library";
+import { ToolbarButton } from "./toolbar-button";
 import { WhiteboardCanvas } from "./whiteboard-canvas";
 import { WhiteboardHeader } from "./whiteboard-header";
 
@@ -65,6 +67,7 @@ function Workspace({ project, slots }: { project: ProjectSummary; slots: Whitebo
   );
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const autosave = useAutosave(project.id);
+  const { toggle } = useBoardPanels();
   useWhiteboardShortcuts({ onOpenPalette: () => setIsPaletteOpen(true) });
 
   return (
@@ -87,7 +90,16 @@ function Workspace({ project, slots }: { project: ProjectSummary; slots: Whitebo
         }
         results={panel}
         inspector={
-          <aside className="h-full overflow-y-auto" aria-label="Inspector">
+          <aside className="relative h-full overflow-y-auto" aria-label="Inspector">
+            {/* Once hidden, a double-click on the board or the ] key brings it back. */}
+            <ToolbarButton
+              label="Hide inspector"
+              shortcut="]"
+              className="absolute top-2 right-2 z-10 text-muted-foreground"
+              onClick={() => toggle("inspector")}
+            >
+              <SidebarSimpleIcon className="-scale-x-100" aria-hidden />
+            </ToolbarButton>
             {inspector}
           </aside>
         }

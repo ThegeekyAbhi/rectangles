@@ -51,11 +51,11 @@ test("run a board, overload it, and read the results", async ({ page }) => {
   await page.getByRole("button", { name: "New project" }).first().click();
   await expect(page).toHaveURL(/\/projects\/.+/);
 
-  // Nothing can run yet, and the reason is on screen.
+  // Nothing can run yet, and the Run button says why.
   const runStatus = page.getByRole("status", { name: "Run status" });
   const runButton = page.getByRole("button", { name: "Run", exact: true });
   await expect(runButton).toBeDisabled();
-  await expect(runStatus).toHaveText("Add a component to the board first.");
+  await expect(runButton).toHaveAccessibleDescription("Add a component to the board first.");
   // The results panel stays out of the way until there is something in it.
   const results = page.getByRole("region", { name: "Run results" });
   await expect(results).toBeHidden();
@@ -66,7 +66,7 @@ test("run a board, overload it, and read the results", async ({ page }) => {
   }
   await dragFromLibrary(page, "Client", { x: board.x + 220, y: board.y + 150 });
   await dragFromLibrary(page, "API server", { x: board.x + 620, y: board.y + 150 });
-  await expect(runStatus).toHaveText(/Connect a client/);
+  await expect(runButton).toHaveAccessibleDescription(/Connect a client/);
 
   // Each component shows its key settings on its face, without being opened.
   await expect(summaryOf(page, "Client")).toHaveText("100 req/s · steady");
@@ -123,11 +123,9 @@ test("run a board, overload it, and read the results", async ({ page }) => {
   await page.screenshot({ path: "test-results/run-light.png" });
 
   // The dark theme applies at once and is remembered.
-  await page.getByRole("button", { name: "Theme" }).click();
-  await page.getByRole("menuitemradio", { name: "Dark" }).click();
+  await page.getByRole("button", { name: "Switch theme" }).click();
   await expect(page.locator("html")).toHaveClass(/dark/);
   await expect(serverLoad).toHaveAttribute("data-capacity-state", "saturated");
-  await expect(page.getByRole("menu")).toBeHidden();
   await page.screenshot({ path: "test-results/run-dark.png" });
   await page.reload();
   await expect(page.locator("html")).toHaveClass(/dark/);

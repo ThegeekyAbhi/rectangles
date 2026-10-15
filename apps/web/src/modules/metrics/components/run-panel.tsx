@@ -4,11 +4,21 @@ import { WarningIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { describeRunEnd, useIsRunStale, useRunStore } from "@/modules/simulation";
+import { ClearResultsButton, RunStatusIndicator, useIsRunStale, useRunStore } from "@/modules/simulation";
 import { useWhiteboardStore } from "@/modules/whiteboard";
 import { useRunTiming } from "../hooks/use-run-reading";
 import { NodeMetrics } from "./node-metrics";
 import { RunOverview } from "./run-overview";
+
+/** How the run is going and the button that clears it, at the right of the panel's top row. */
+function RunStatusBar() {
+  return (
+    <div className="ml-auto flex min-w-0 shrink items-center gap-2">
+      <RunStatusIndicator />
+      <ClearResultsButton />
+    </div>
+  );
+}
 
 function PanelMessage({ children }: { children: React.ReactNode }) {
   return <p className="p-4 text-sm text-muted-foreground">{children}</p>;
@@ -35,16 +45,24 @@ export function RunPanel() {
   const [tab, setTab] = useState("overview");
 
   if (metrics === null || timing === null) {
-    const message =
-      status === "failed"
-        ? `The run failed: ${failure ?? "unknown error"}`
-        : status === "idle"
-          ? "Nothing has run yet. Press Run to send simulated traffic through this board."
-          : "Starting the run…";
+    if (status === "idle") {
+      return (
+        <section aria-label="Run results" className="h-full bg-background">
+          <p className="px-4 py-3 text-xs text-muted-foreground">
+            Nothing has run yet. Press Run to send simulated traffic through this board.
+          </p>
+        </section>
+      );
+    }
     return (
       <section aria-label="Run results" className="h-full bg-background">
+        <div className="flex h-10 shrink-0 items-center gap-3 border-b px-4">
+          <RunStatusBar />
+        </div>
         <p className="px-4 py-3 text-xs text-muted-foreground" role={status === "failed" ? "alert" : undefined}>
-          {message}
+          {status === "failed"
+            ? `The run failed: ${failure ?? "unknown error"}`
+            : "Starting the run…"}
         </p>
       </section>
     );
@@ -67,11 +85,12 @@ export function RunPanel() {
               <span className="truncate">These results are from before your last change. Run again to update them.</span>
             </p>
           )}
-          {!isStale && isPartial && result !== null && (
-            <p className="truncate text-xs text-muted-foreground" role="status">
-              {describeRunEnd(result)}. The results cover the run up to that point.
+          {!isStale && isPartial && (
+            <p className="min-w-0 truncate text-xs text-muted-foreground">
+              The results cover the run up to the point it stopped.
             </p>
           )}
+          <RunStatusBar />
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
           <TabsContent value="overview">

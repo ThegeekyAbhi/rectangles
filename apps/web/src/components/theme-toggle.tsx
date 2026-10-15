@@ -1,15 +1,8 @@
 "use client";
 
-import { CircleHalfIcon } from "@phosphor-icons/react";
+import { MoonIcon, SunIcon } from "@phosphor-icons/react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 export const THEMES = [
   { value: "light", label: "Light" },
@@ -17,25 +10,22 @@ export const THEMES = [
   { value: "system", label: "System" },
 ] as const;
 
-/** A button that opens the choice of light, dark, or whatever the system uses. */
+/**
+ * Switches between the light and dark themes. Following the system is the starting
+ * point, and stays available from the command palette.
+ */
 export function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon-sm" aria-label="Theme">
-          <CircleHalfIcon aria-hidden />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuRadioGroup value={theme ?? "system"} onValueChange={setTheme}>
-          {THEMES.map(({ value, label }) => (
-            <DropdownMenuRadioItem key={value} value={value}>
-              {label}
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      aria-label="Switch theme"
+      onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+    >
+      {/* Both icons are rendered and CSS picks one, so the server and browser agree. */}
+      <MoonIcon className="dark:hidden" aria-hidden />
+      <SunIcon className="hidden dark:block" aria-hidden />
+    </Button>
   );
 }

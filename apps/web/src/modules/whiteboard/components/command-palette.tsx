@@ -30,9 +30,10 @@ import { THEMES } from "@/components/theme-toggle";
 import { useAddComponent } from "../hooks/use-add-component";
 import { useBoardPanels } from "../hooks/use-board-panels";
 import { listComponentDefinitions } from "../lib/component-catalog";
+import { ANIMATED_FIT_VIEW_OPTIONS } from "../lib/viewport";
 import { useCanvasViewStore } from "../store/canvas-view-store";
 import { useWhiteboardStoreApi } from "../store/whiteboard-store-context";
-import { ComponentIcon } from "./component-icon";
+import { ComponentIconChip } from "./component-icon-chip";
 
 export function CommandPalette({
   isOpen,
@@ -74,7 +75,7 @@ export function CommandPalette({
                 keywords={[definition.type, definition.description]}
                 onSelect={run(() => addComponent(definition.type))}
               >
-                <ComponentIcon componentType={definition.type} />
+                <ComponentIconChip componentType={definition.type} size="sm" />
                 Add {definition.label}
               </CommandItem>
             ))}
@@ -107,7 +108,7 @@ export function CommandPalette({
             </CommandItem>
           </CommandGroup>
           <CommandGroup heading="View">
-            <CommandItem onSelect={run(() => void fitView({ duration: 150 }))}>
+            <CommandItem onSelect={run(() => void fitView(ANIMATED_FIT_VIEW_OPTIONS))}>
               <CornersOutIcon aria-hidden />
               Fit to view
               <CommandShortcut>⇧1</CommandShortcut>

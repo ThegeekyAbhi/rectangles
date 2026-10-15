@@ -9,9 +9,12 @@ export interface CanvasViewState {
    * selected and hides when nothing is.
    */
   readonly isInspectorEnabled: boolean;
+  /** Whether the toolbar floating on the canvas is folded down to one button. */
+  readonly isCanvasToolbarCollapsed: boolean;
   /** The last size of each panel while showing, in pixels, to return to when shown again. */
   readonly panelSizes: Readonly<Partial<Record<BoardPanelName, number>>>;
   toggleMinimap(): void;
+  toggleCanvasToolbar(): void;
   setInspectorEnabled(isEnabled: boolean): void;
   rememberPanelSize(panel: BoardPanelName, pixels: number): void;
 }
@@ -26,9 +29,13 @@ export const useCanvasViewStore = create<CanvasViewState>()(
     (set, get) => ({
       isMinimapVisible: true,
       isInspectorEnabled: true,
+      isCanvasToolbarCollapsed: false,
       panelSizes: {},
       toggleMinimap() {
         set((state) => ({ isMinimapVisible: !state.isMinimapVisible }));
+      },
+      toggleCanvasToolbar() {
+        set((state) => ({ isCanvasToolbarCollapsed: !state.isCanvasToolbarCollapsed }));
       },
       setInspectorEnabled(isEnabled) {
         set({ isInspectorEnabled: isEnabled });

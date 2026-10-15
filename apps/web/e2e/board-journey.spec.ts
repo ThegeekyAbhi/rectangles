@@ -123,7 +123,8 @@ test("a project can be renamed, duplicated, deleted and restored", async ({ page
   await page.goto("/");
   await page.getByRole("button", { name: "New project" }).first().click();
   await expect(page).toHaveURL(/\/projects\/.+/);
-  await page.getByRole("link", { name: "Back to projects" }).click();
+  await page.keyboard.press("ControlOrMeta+k");
+  await page.getByRole("option", { name: "Back to projects" }).click();
 
   const projects = page.getByRole("main").getByRole("listitem");
   await expect(projects).toHaveCount(1);
@@ -171,9 +172,9 @@ test("panels can be hidden, resized, and are remembered", async ({ page }) => {
   await expect(library).toBeHidden();
   await page.keyboard.press("[");
   await expect(library).toBeVisible();
-  await page.keyboard.press("]");
+  await inspector.getByRole("button", { name: "Hide inspector" }).click();
   await expect(inspector).toBeHidden();
-  await page.getByRole("button", { name: "Show inspector" }).click();
+  await page.keyboard.press("]");
   await expect(inspector).toBeVisible();
 
   // Dragging a panel's edge resizes it, and the size survives a reload.
@@ -222,13 +223,16 @@ test("the canvas opens the inspector on a double-click and can hide its minimap"
   await expect(inspector.getByLabel("Name")).toHaveValue("API server");
   await page.screenshot({ path: "test-results/canvas-dark-selected.png" });
 
-  // The minimap hides from its button or its key, and stays hidden after a reload.
+  // The minimap hides from the zoom menu or its key, and stays hidden after a reload.
   const minimap = page.locator(".react-flow__minimap");
   await page.locator(".react-flow__pane").click({ position: { x: 20, y: 20 } });
   await page.screenshot({ path: "test-results/canvas-dark.png" });
   await expect(minimap).toBeVisible();
-  await page.getByRole("button", { name: "Hide minimap" }).click();
+  await page.getByRole("button", { name: /^Zoom, / }).click();
+  await page.getByRole("menuitemcheckbox", { name: "Minimap" }).click();
   await expect(minimap).toBeHidden();
+  // While the menu is closing it still has the keyboard.
+  await expect(page.getByRole("menu")).toBeHidden();
   await page.keyboard.press("m");
   await expect(minimap).toBeVisible();
   await page.keyboard.press("m");

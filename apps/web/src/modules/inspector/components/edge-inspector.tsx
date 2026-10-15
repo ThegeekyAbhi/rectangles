@@ -26,7 +26,7 @@ export function EdgeInspector({ edge }: { edge: ConnectionEdge }) {
 
   return (
     <div className="flex flex-col gap-4 p-4">
-      <h2 className="text-sm font-medium">Connection</h2>
+      <h2 className="pr-7 text-sm font-medium">Connection</h2>
       <div className="flex items-center gap-2">
         <EdgeEnd title="From" nodeLabel={sourceLabel ?? "Missing"} port={edge.sourceHandle ?? ""} />
         <ArrowRightIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />

@@ -19,6 +19,10 @@
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
   --color-node-border: var(--node-border);
+  --color-category-traffic: var(--category-traffic);
+  --color-category-compute: var(--category-compute);
+  --color-category-data: var(--category-data);
+  --color-category-messaging: var(--category-messaging);
   --color-state-healthy: var(--state-healthy);
   --color-state-busy: var(--state-busy);
   --color-state-saturated: var(--state-saturated);
@@ -70,13 +74,14 @@
 :root {
   color-scheme: light;
 
-  /* Inputs: a faint cool tint. Set the chroma to 0 for pure greys. */
+  /* Inputs: neutral greys. Raise the chroma to tint every neutral towards the hue. */
   --base-hue: 265;
-  --base-chroma: 0.004;
+  --base-chroma: 0;
 
   /* Surfaces, from the back of the app to the front. */
   --sidebar: oklch(0.985 var(--base-chroma) var(--base-hue));
-  --background: oklch(1 0 0);
+  /* The canvas sits a shade below white so the white nodes on it stand off. */
+  --background: oklch(0.975 var(--base-chroma) var(--base-hue));
   --card: oklch(1 0 0);
   --popover: oklch(1 0 0);
   /* Hover and selected rows, and quiet fills. */
@@ -102,9 +107,15 @@
   --input: oklch(0.922 var(--base-chroma) var(--base-hue));
   --ring: oklch(0.708 var(--base-chroma) var(--base-hue));
   /* The outline of things drawn on the canvas, which must stand out from it. */
-  --node-border: var(--border);
+  --node-border: oklch(0.8 var(--base-chroma) var(--base-hue));
 
-  /* The only hues in the app: how loaded a component is during a run, and errors. */
+  /* Icon colours for the library's sections, kept clear of the load-state hues below. */
+  --category-traffic: oklch(0.6 0.17 45);
+  --category-compute: oklch(0.55 0.17 255);
+  --category-data: oklch(0.55 0.2 295);
+  --category-messaging: oklch(0.58 0.2 350);
+
+  /* How loaded a component is during a run, and errors. */
   --state-healthy: oklch(0.55 0.14 155);
   --state-busy: oklch(0.62 0.15 65);
   --state-saturated: oklch(0.577 0.245 27.325);
@@ -132,13 +143,13 @@
 .dark {
   color-scheme: dark;
 
-  --sidebar: oklch(0.155 var(--base-chroma) var(--base-hue));
-  --background: oklch(0.185 var(--base-chroma) var(--base-hue));
-  --card: oklch(0.215 var(--base-chroma) var(--base-hue));
-  --popover: oklch(0.235 var(--base-chroma) var(--base-hue));
-  --muted: oklch(0.255 var(--base-chroma) var(--base-hue));
-  --accent: oklch(0.255 var(--base-chroma) var(--base-hue));
-  --secondary: oklch(0.255 var(--base-chroma) var(--base-hue));
+  --sidebar: oklch(0.17 var(--base-chroma) var(--base-hue));
+  --background: oklch(0.2 var(--base-chroma) var(--base-hue));
+  --card: oklch(0.25 var(--base-chroma) var(--base-hue));
+  --popover: oklch(0.27 var(--base-chroma) var(--base-hue));
+  --muted: oklch(0.29 var(--base-chroma) var(--base-hue));
+  --accent: oklch(0.29 var(--base-chroma) var(--base-hue));
+  --secondary: oklch(0.29 var(--base-chroma) var(--base-hue));
 
   --foreground: oklch(0.96 var(--base-chroma) var(--base-hue));
   --muted-foreground: oklch(0.69 var(--base-chroma) var(--base-hue));
@@ -152,7 +163,12 @@
   --border: oklch(1 0 0 / 8%);
   --input: oklch(1 0 0 / 12%);
   --ring: oklch(0.556 var(--base-chroma) var(--base-hue));
-  --node-border: oklch(1 0 0 / 18%);
+  --node-border: oklch(1 0 0 / 35%);
+
+  --category-traffic: oklch(0.75 0.15 50);
+  --category-compute: oklch(0.72 0.14 250);
+  --category-data: oklch(0.74 0.15 295);
+  --category-messaging: oklch(0.74 0.16 350);
 
   --state-healthy: oklch(0.74 0.16 155);
   --state-busy: oklch(0.8 0.15 80);
@@ -169,18 +185,23 @@
   html {
     @apply font-sans;
   }
+  /* Tailwind 4 leaves buttons with the default arrow; anything clickable gets the hand. */
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
 }
 /* The board (React Flow) takes its colours from the design tokens above. */
 .react-flow {
   --xy-background-color: var(--background);
-  --xy-background-pattern-color: color-mix(in oklch, var(--foreground) 14%, transparent);
-  --xy-edge-stroke: color-mix(in oklch, var(--foreground) 45%, transparent);
+  --xy-background-pattern-color: color-mix(in oklch, var(--foreground) 18%, transparent);
+  --xy-edge-stroke: color-mix(in oklch, var(--foreground) 60%, transparent);
   --xy-edge-stroke-selected: var(--foreground);
   --xy-edge-stroke-width: 1.5;
   --xy-connectionline-stroke: var(--foreground);
   --xy-connectionline-stroke-width: 1.5;
-  --xy-handle-background-color: var(--background);
-  --xy-handle-border-color: color-mix(in oklch, var(--foreground) 55%, transparent);
+  --xy-handle-background-color: color-mix(in oklch, var(--foreground) 60%, var(--background));
+  --xy-handle-border-color: var(--xy-handle-background-color);
   --xy-selection-background-color: color-mix(in oklch, var(--foreground) 6%, transparent);
   --xy-selection-border: 1px solid color-mix(in oklch, var(--foreground) 35%, transparent);
   --xy-minimap-background-color: var(--card);
@@ -189,13 +210,20 @@
   --xy-attribution-background-color: transparent;
 }
 
+/* Out ports are dots and in ports are short bars, so the way a connection runs is plain. */
 .react-flow .react-flow__handle {
   width: 10px;
   height: 10px;
-  border-width: 1.5px;
+  border-width: 0;
   transition:
     transform 150ms,
-    border-color 150ms;
+    background-color 150ms;
+}
+
+.react-flow .react-flow__handle.target {
+  width: 4px;
+  height: 16px;
+  border-radius: 2px;
 }
 
 /* Ports grow while a connection is being drawn and when pointed at, so they are easy to hit. */
@@ -203,7 +231,7 @@
 .react-flow .react-flow__handle.connectingto,
 .react-flow .react-flow__handle.valid {
   transform: translate(var(--handle-shift-x, 0), -50%) scale(1.4);
-  border-color: var(--foreground);
+  background-color: var(--foreground);
 }
 
 .react-flow__handle-left {

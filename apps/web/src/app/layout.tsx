@@ -36,7 +36,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         <ThemeProvider>
           <QueryProvider>
-            <TooltipProvider>{children}</TooltipProvider>
+            {/* Tooltips wait half a second, then follow the pointer at once between neighbours. */}
+            <TooltipProvider delayDuration={500} skipDelayDuration={300}>
+              {children}
+            </TooltipProvider>
           </QueryProvider>
           <Toaster />
         </ThemeProvider>

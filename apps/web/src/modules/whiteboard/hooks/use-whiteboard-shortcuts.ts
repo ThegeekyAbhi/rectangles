@@ -1,10 +1,9 @@
 import { useReactFlow } from "@xyflow/react";
 import { useHotkeys } from "react-hotkeys-hook";
+import { ANIMATED_FIT_VIEW_OPTIONS, ZOOM_DURATION_MS } from "../lib/viewport";
 import { useCanvasViewStore } from "../store/canvas-view-store";
 import { useWhiteboardStoreApi } from "../store/whiteboard-store-context";
 import { useBoardPanels } from "./use-board-panels";
-
-const ZOOM_DURATION_MS = 150;
 
 /**
  * Keyboard shortcuts for the board. `mod` is ⌘ on macOS and Ctrl elsewhere. Shortcuts
@@ -13,7 +12,7 @@ const ZOOM_DURATION_MS = 150;
  */
 export function useWhiteboardShortcuts({ onOpenPalette }: { onOpenPalette: () => void }): void {
   const store = useWhiteboardStoreApi();
-  const { fitView, zoomIn, zoomOut } = useReactFlow();
+  const { fitView, zoomIn, zoomOut, zoomTo } = useReactFlow();
   const { toggle } = useBoardPanels();
   const preventDefault = { preventDefault: true };
 
@@ -24,9 +23,10 @@ export function useWhiteboardShortcuts({ onOpenPalette }: { onOpenPalette: () =>
   useHotkeys("mod+v", () => store.getState().pasteClipboard(), preventDefault);
   useHotkeys("mod+d", () => store.getState().duplicateSelection(), preventDefault);
   useHotkeys("mod+a", () => store.getState().selectAll(), preventDefault);
-  useHotkeys("shift+1", () => void fitView({ duration: ZOOM_DURATION_MS }), preventDefault);
+  useHotkeys("shift+1", () => void fitView(ANIMATED_FIT_VIEW_OPTIONS), preventDefault);
   useHotkeys("mod+equal", () => void zoomIn({ duration: ZOOM_DURATION_MS }), preventDefault);
   useHotkeys("mod+minus", () => void zoomOut({ duration: ZOOM_DURATION_MS }), preventDefault);
+  useHotkeys("mod+0", () => void zoomTo(1, { duration: ZOOM_DURATION_MS }), preventDefault);
   useHotkeys("m", () => useCanvasViewStore.getState().toggleMinimap());
   useHotkeys("bracketleft", () => toggle("library"));
   useHotkeys("bracketright", () => toggle("inspector"));

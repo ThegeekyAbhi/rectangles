@@ -65,12 +65,12 @@ export function NodeRunOverlay({ nodeId }: { nodeId: string }) {
   return (
     <>
       {state === "saturated" && (
-        <div className="pointer-events-none absolute -inset-px rounded-lg ring-2 ring-state-saturated" />
+        <div className="pointer-events-none absolute -inset-0.5 rounded-[inherit] ring-2 ring-state-saturated" />
       )}
       <div
         data-slot="node-run-overlay"
         data-capacity-state={state}
-        className="pointer-events-none absolute top-full left-0 mt-1.5 flex items-center gap-1.5 text-xs whitespace-nowrap text-muted-foreground tabular-nums"
+        className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 flex -translate-x-1/2 items-center gap-1.5 text-xs whitespace-nowrap text-muted-foreground tabular-nums"
       >
         <span className={`flex items-center gap-1 font-medium ${STATE_TEXT[state]}`}>
           <UtilisationRing utilisation={utilisation} />

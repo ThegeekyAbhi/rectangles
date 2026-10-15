@@ -19,6 +19,7 @@ import { useBoardPanels } from "../hooks/use-board-panels";
 import { GRID_SIZE } from "../lib/component-visuals";
 import { isWellFormedConnection } from "../lib/connection-check";
 import { EDGE_TYPE } from "../lib/document-conversion";
+import { FIT_VIEW_OPTIONS } from "../lib/viewport";
 import { useCanvasViewStore } from "../store/canvas-view-store";
 import { useWhiteboardStore, useWhiteboardStoreApi } from "../store/whiteboard-store-context";
 import type {
@@ -26,6 +27,7 @@ import type {
   ConnectionEdge as ConnectionEdgeType,
 } from "../types";
 import { AlignmentGuides } from "./alignment-guides";
+import { CanvasToolbar } from "./canvas-toolbar";
 import { ComponentNode } from "./component-node";
 import { ConnectionEdge } from "./connection-edge";
 import { EdgeMarkers } from "./edge-markers";
@@ -37,7 +39,6 @@ const DELETE_KEYS = ["Backspace", "Delete"];
 // Left-drag selects, like a design tool; scroll, middle-drag, right-drag or Space pans.
 const PAN_BUTTONS = [1, 2];
 const DEFAULT_EDGE_OPTIONS = { type: EDGE_TYPE };
-const FIT_VIEW_OPTIONS = { padding: 0.3, maxZoom: 1 };
 
 export function WhiteboardCanvas() {
   const store = useWhiteboardStoreApi();
@@ -101,7 +102,7 @@ export function WhiteboardCanvas() {
       attributionPosition="bottom-left"
       isValidConnection={isValidConnection}
       defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
-      connectionLineType={ConnectionLineType.SmoothStep}
+      connectionLineType={ConnectionLineType.Bezier}
       snapToGrid
       snapGrid={SNAP_GRID}
       panOnScroll
@@ -115,7 +116,9 @@ export function WhiteboardCanvas() {
       fitViewOptions={FIT_VIEW_OPTIONS}
     >
       <Background variant={BackgroundVariant.Dots} gap={GRID_SIZE} size={1} />
-      {isMinimapVisible && <MiniMap pannable zoomable ariaLabel="Board overview" />}
+      {/* The minimap sits above the toolbar, which has the same corner. */}
+      {isMinimapVisible && <MiniMap pannable zoomable ariaLabel="Board overview" className="mb-16!" />}
+      <CanvasToolbar />
       <EdgeMarkers />
       <AlignmentGuides guides={guides} />
       {nodes.length === 0 && (

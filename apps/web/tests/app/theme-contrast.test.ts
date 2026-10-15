@@ -46,8 +46,17 @@ const TEXT_ON_SURFACES: readonly (readonly [text: string, surfaces: readonly str
   ["--sidebar-foreground", ["--sidebar"]],
   ["--primary-foreground", ["--primary"]],
 ];
-const STATE_COLOURS = ["--state-healthy", "--state-busy", "--state-saturated"];
-const STATE_SURFACES = ["--background", "--card"];
+/** Colours that carry meaning as graphics: load states and component category icons. */
+const GRAPHIC_COLOURS = [
+  "--state-healthy",
+  "--state-busy",
+  "--state-saturated",
+  "--category-traffic",
+  "--category-compute",
+  "--category-data",
+  "--category-messaging",
+];
+const GRAPHIC_SURFACES = ["--background", "--card"];
 
 /** WCAG 2 AA: 4.5 for body text, 3 for large text and for graphics that carry meaning. */
 const TEXT_CONTRAST = 4.5;
@@ -65,10 +74,10 @@ describe.each([
     },
   );
 
-  it.each(STATE_COLOURS.flatMap((state) => STATE_SURFACES.map((surface) => [state, surface] as const)))(
+  it.each(GRAPHIC_COLOURS.flatMap((colour) => GRAPHIC_SURFACES.map((surface) => [colour, surface] as const)))(
     "%s stands out on %s",
-    (state, surface) => {
-      const contrast = wcagContrast(resolve(tokens, state), resolve(tokens, surface));
+    (colour, surface) => {
+      const contrast = wcagContrast(resolve(tokens, colour), resolve(tokens, surface));
       expect(contrast).toBeGreaterThanOrEqual(GRAPHIC_CONTRAST);
     },
   );

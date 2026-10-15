@@ -1,46 +1,56 @@
 "use client";
 
-import { FastForwardIcon, PauseIcon, PlayIcon, StopIcon, XIcon } from "@phosphor-icons/react";
+import { FastForwardIcon, PauseIcon, PlayIcon, StopIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useRunBlocker } from "../hooks/use-run-blocker";
 import { useSimulationRun } from "../hooks/use-simulation-run";
-import { describeDuration, describeRunEnd, formatSimulatedSeconds } from "../lib/run-status-text";
+import { describeDuration } from "../lib/run-status-text";
 import { RUN_DURATIONS } from "../store/run-store";
 import { useRunStore } from "../store/run-store-context";
 
-/** What the run is doing right now, or why it cannot start. */
-function RunStatusText({ blocker }: { blocker: string | null }) {
-  const status = useRunStore((state) => state.status);
-  const simulatedSeconds = useRunStore((state) => state.metrics?.simulatedSeconds ?? 0);
-  const durationSeconds = useRunStore((state) => state.durationSeconds);
-  const result = useRunStore((state) => state.result);
-  const failure = useRunStore((state) => state.failure);
+const RUN_BLOCKER_ID = "run-blocker";
 
-  let text: string | null = blocker;
-  let isProblem = false;
-  if (status === "running" || status === "paused") {
-    const progress = `${formatSimulatedSeconds(simulatedSeconds)} of ${formatSimulatedSeconds(durationSeconds)}`;
-    text = status === "paused" ? `Paused · ${progress}` : progress;
-  } else if (status === "failed") {
-    text = `Run failed: ${failure ?? "unknown error"}`;
-    isProblem = true;
-  } else if (blocker === null && result !== null) {
-    text = describeRunEnd(result);
-  }
-  if (text === null) {
-    return null;
+/**
+ * Starts a run. While the board cannot be run the button is off, and pointing at it
+ * says what is missing.
+ */
+function RunButton({
+  blocker,
+  onRun,
+  children,
+}: {
+  blocker: string | null;
+  onRun: () => void;
+  children: React.ReactNode;
+}) {
+  const button = (
+    <Button
+      size="sm"
+      disabled={blocker !== null}
+      aria-describedby={blocker === null ? undefined : RUN_BLOCKER_ID}
+      onClick={onRun}
+    >
+      <PlayIcon weight="fill" aria-hidden />
+      {children}
+    </Button>
+  );
+  if (blocker === null) {
+    return button;
   }
   return (
-    <span
-      role="status"
-      aria-label="Run status"
-      title={text}
-      className={`max-w-80 truncate text-xs tabular-nums ${isProblem ? "text-destructive" : "text-muted-foreground"}`}
-    >
-      {text}
-    </span>
+    <Tooltip>
+      {/* A disabled button ignores the pointer, so the wrapper is what gets hovered. */}
+      <TooltipTrigger asChild>
+        <span className="inline-flex cursor-not-allowed">{button}</span>
+      </TooltipTrigger>
+      <TooltipContent>{blocker}</TooltipContent>
+      <span id={RUN_BLOCKER_ID} className="sr-only">
+        {blocker}
+      </span>
+    </Tooltip>
   );
 }
 
@@ -68,17 +78,19 @@ function DurationSelect({ disabled }: { disabled: boolean }) {
   );
 }
 
-/** Run, pause, resume, skip, stop and clear, with the run's status beside them. */
+/**
+ * Run, pause, resume, skip and stop, and the test's length. How the run is going is
+ * shown in the results panel, beside the results themselves.
+ */
 export function RunControls() {
   const status = useRunStore((state) => state.status);
   const hasResults = useRunStore((state) => state.metrics !== null || state.failure !== null);
   const blocker = useRunBlocker();
-  const { run, pause, resume, skipToEnd, stop, reset } = useSimulationRun();
+  const { run, pause, resume, skipToEnd, stop } = useSimulationRun();
   const isRunInProgress = status === "running" || status === "paused";
 
   return (
     <div className="flex items-center gap-1">
-      <RunStatusText blocker={blocker} />
       {isRunInProgress ? (
         <>
           {status === "running" ? (
@@ -102,18 +114,9 @@ export function RunControls() {
           </Button>
         </>
       ) : (
-        <>
-          <Button size="sm" disabled={blocker !== null} onClick={run}>
-            <PlayIcon weight="fill" aria-hidden />
-            {hasResults ? "Run again" : "Run"}
-          </Button>
-          {hasResults && (
-            <Button variant="ghost" size="sm" onClick={reset}>
-              <XIcon aria-hidden />
-              Clear results
-            </Button>
-          )}
-        </>
+        <RunButton blocker={blocker} onRun={run}>
+          {hasResults ? "Run again" : "Run"}
+        </RunButton>
       )}
       <DurationSelect disabled={isRunInProgress} />
       <Separator orientation="vertical" className="mx-1 h-5!" />

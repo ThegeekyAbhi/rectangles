@@ -159,4 +159,4 @@ Connection validity is derived from port declarations, never hand-written per co
 - Icons: `@phosphor-icons/react` (`/ssr` entry in server components). Not lucide.
 - UI primitives come from shadcn (`pnpm dlx shadcn@latest add <name>` in `apps/web`).
 - Colours come from the tokens in `apps/web/src/app/globals.css`, used through Tailwind classes (`bg-card`, `text-muted-foreground`, `border`). No hex, `rgb()` or raw colour in components, and no per-component `dark:` colour overrides: the dark theme redefines the same tokens. To change a shade, edit its OKLCH lightness there, then run `tests/app/theme-contrast.test.ts`.
-- Surfaces, back to front: `sidebar` (header, side panels), `background` (canvas, results), `card` (nodes, tiles), `popover`. Hue is reserved for load state (`state-healthy`, `state-busy`, `state-saturated`).
+- Surfaces, back to front: `sidebar` (header, side panels), `background` (canvas, results), `card` (nodes, tiles), `popover`. Hue is reserved for load state (`state-healthy`, `state-busy`, `state-saturated`) and component category icons (`category-<id>`).
