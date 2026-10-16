@@ -1,4 +1,4 @@
-import type { Micros } from "../contract/time-units.ts";
+import type { Micros } from "../../contract/time-units.ts";
 
 const INITIAL_CAPACITY = 1024;
 /** Upper bound on events pending at once. Handles pack a slot below this value. */

@@ -9,12 +9,14 @@
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
+    "test:changed": "vitest run --changed",
     "test:watch": "vitest",
     "test:e2e": "playwright test"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
     "@rectangles/engine": "workspace:*",
+    "@rectangles/rules": "workspace:*",
     "@rectangles/schema": "workspace:*",
     "@tanstack/react-query": "^5.104.2",
     "@xyflow/react": "^12.12.0",

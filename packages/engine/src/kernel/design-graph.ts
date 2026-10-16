@@ -98,8 +98,8 @@ function isPortReference(value: unknown): value is PortReference {
  * Turns a design document into an indexed graph, checking that it is well formed:
  * known component types, valid configs, and edges that join an out port to an in port.
  *
- * Whether a connection makes sense (protocols, cardinality, graph rules) is decided by
- * the rules package, not here.
+ * Whether a connection makes sense (protocols, loops, bad practice) is decided by
+ * `@rectangles/rules`, not here.
  *
  * @throws {DesignError} if the document is malformed.
  */

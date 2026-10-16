@@ -15,7 +15,8 @@ describe("buildDesignGraph", () => {
     const graph = buildDesignGraph(validDesign, registry);
     expect(graph.nodes.map((node) => node.id)).toEqual(["client", "api"]);
     expect(graph.nodes[0]?.targetsByPort).toEqual([[1]]);
-    expect(graph.nodes[1]?.targetsByPort).toEqual([[]]);
+    // The API server's in port, then its unconnected database port.
+    expect(graph.nodes[1]?.targetsByPort).toEqual([[], []]);
   });
 
   it("records which edge leads to each target", () => {

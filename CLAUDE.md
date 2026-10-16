@@ -1,6 +1,6 @@
 # Rectangles
 
-Interactive system-design simulator. Product spec: [PRD.md](PRD.md). Build plan: [MilestoneBased.md](MilestoneBased.md). How the engine simulates, and its kernel backlog: [simulation-algorithm.md](simulation-algorithm.md).
+Interactive system-design simulator. Product spec: [PRD.md](PRD.md). Build plan: [MilestoneBased.md](MilestoneBased.md). How the engine simulates, and its kernel backlog: [simulation-algorithm.md](simulation-algorithm.md). Realism gaps, resource model and scale plan: [new-algorithm.md](new-algorithm.md).
 
 Next.js 16 has breaking changes versus older versions — read `apps/web/AGENTS.md` before writing web code.
 
@@ -13,7 +13,9 @@ pnpm dev         # all apps
 pnpm build
 pnpm lint
 pnpm typecheck
-pnpm test        # Vitest, per package
+pnpm test        # Vitest, fast tests, packages in parallel
+pnpm test:slow   # engine: long runs checked against queueing theory (*.slow.test.ts); run before committing engine changes
+pnpm test:changed   # only tests affected by uncommitted changes
 pnpm sim <design.json> --seed 1   # run a design through the engine, print metrics
 pnpm bench       # engine benchmark; fails below 500k events/s
 ```
@@ -27,7 +29,7 @@ apps/
 packages/
   schema/       Zod schemas for the architecture document  — planned
   engine/       Simulation engine, zero runtime deps
-  rules/        Connection + graph validation              — planned
+  rules/        Connection + graph validation
 ```
 
 Package names are `@rectangles/<name>`.
@@ -95,7 +97,14 @@ Layering inside a module: `routes → service → repository`. Never skip a laye
 src/
   contract/               What a component author sees: Context, ComponentDefinition, config
                           field specs, ports, metrics, time units. Imports nothing else
-  kernel/                 Event loop, event queue, PRNG, design graph — knows no component by name
+  kernel/                 Knows no component by name
+    des/                  Generic DES core: event queue, event loop (clock, limits). Knows no calls, nodes or ports
+    call-pool.ts          Reusable call records
+    call-router.ts        send / reply / timers → events → handlers
+    node-context.ts       Context and SetupContext, bound to one node
+    runtime-graph.ts      Design graph → runtime nodes and edges
+    simulation.ts         Public API: createSimulation, runSimulation
+    design-graph.ts, prng.ts, config-validation.ts, event-budget.ts
   metrics/                Recording in 1 s windows, run result, run summary, live run snapshot
   components/
     <component>/
@@ -103,7 +112,7 @@ src/
       behaviour.ts        Event handlers; exports the component via defineComponent
   registry.ts             One line per component
   index.ts
-tests/                    Mirrors src/: tests/kernel/event-queue.test.ts tests src/kernel/event-queue.ts
+tests/                    Mirrors src/: tests/kernel/des/event-queue.test.ts tests src/kernel/des/event-queue.ts
   support/                Stub components, queueing formulas, shared assertions
   registry.test.ts        Conformance suite, run against every registered component
 cli/                      `pnpm sim` (Node APIs live here, never in src/)
@@ -121,14 +130,21 @@ bench/                    `pnpm bench`
 ### 5. Rules — `packages/rules/src`
 
 ```
-ports/                  Port protocols and connection matching
-graph-rules/
-  <rule-id>.ts          One rule per file: { id, severity, check, message, fix? }
-registry.ts
+ports/
+  protocol-compatibility.ts   Every protocol pair: compatible, discouraged or incompatible
+  check-connection.ts         checkConnection / checkExistingConnection → verdict
+connection-rules/
+  <rule-id>.ts                One rule per file: { id, severity: "block" | "warn", applies, copy }
+graph-rules/                  Whole-design rules (none yet)
+registry.ts                   One line per rule; specific rules before the fallbacks
+types.ts
 index.ts
 ```
 
 Connection validity is derived from port declarations, never hand-written per component pair.
+`block` means the connection cannot work and is not made; `warn` means it is simulated but real
+systems rarely do it. Every verdict carries user-facing copy (title, why, optional fix) that names
+components by the user's label. The board shows it in `whiteboard/components/connection-advice.tsx`.
 
 ### 6. Module boundaries
 
@@ -142,7 +158,7 @@ Connection validity is derived from port declarations, never hand-written per co
 ### 7. Naming and files
 
 - Files and folders: `kebab-case`. Components: `PascalCase` export, one main component per file.
-- Hooks: `use-<thing>.ts`. Stores: `<thing>-store.ts`. Tests: `<file>.test.ts` in a `tests/` folder beside `src/`, at the same relative path as the file they test (`src/kernel/prng.ts` → `tests/kernel/prng.test.ts`). Shared test helpers go in `tests/support/`.
+- Hooks: `use-<thing>.ts`. Stores: `<thing>-store.ts`. Tests: `<file>.test.ts` in a `tests/` folder beside `src/`, at the same relative path as the file they test (`src/kernel/prng.ts` → `tests/kernel/prng.test.ts`). Shared test helpers go in `tests/support/`. Long statistical runs are named `<name>.slow.test.ts` and only run under `pnpm test:slow`; keep one long scenario per file so they run in parallel.
 - No barrel files except a module's or package's `index.ts`.
 - No `utils.ts` dumping grounds inside modules; name the file after what it does.
 - Web imports use the `@/` alias; no `../../..` across module boundaries.

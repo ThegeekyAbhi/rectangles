@@ -13,10 +13,13 @@ export interface CanvasViewState {
   readonly isCanvasToolbarCollapsed: boolean;
   /** The last size of each panel while showing, in pixels, to return to when shown again. */
   readonly panelSizes: Readonly<Partial<Record<BoardPanelName, number>>>;
+  /** Connection rules whose warning banner the person chose not to see again. */
+  readonly mutedConnectionRules: readonly string[];
   toggleMinimap(): void;
   toggleCanvasToolbar(): void;
   setInspectorEnabled(isEnabled: boolean): void;
   rememberPanelSize(panel: BoardPanelName, pixels: number): void;
+  muteConnectionRule(ruleId: string): void;
 }
 
 /**
@@ -31,6 +34,7 @@ export const useCanvasViewStore = create<CanvasViewState>()(
       isInspectorEnabled: true,
       isCanvasToolbarCollapsed: false,
       panelSizes: {},
+      mutedConnectionRules: [],
       toggleMinimap() {
         set((state) => ({ isMinimapVisible: !state.isMinimapVisible }));
       },
@@ -45,6 +49,11 @@ export const useCanvasViewStore = create<CanvasViewState>()(
         // Called on every frame of a drag; only a changed size is worth storing.
         if (get().panelSizes[panel] !== rounded) {
           set((state) => ({ panelSizes: { ...state.panelSizes, [panel]: rounded } }));
+        }
+      },
+      muteConnectionRule(ruleId) {
+        if (!get().mutedConnectionRules.includes(ruleId)) {
+          set((state) => ({ mutedConnectionRules: [...state.mutedConnectionRules, ruleId] }));
         }
       },
     }),

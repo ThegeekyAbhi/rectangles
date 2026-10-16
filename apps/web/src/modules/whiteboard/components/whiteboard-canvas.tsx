@@ -2,7 +2,7 @@
 
 import "@xyflow/react/dist/style.css";
 import { CursorClickIcon } from "@phosphor-icons/react";
-import type { Connection, NodeChange, OnBeforeDelete } from "@xyflow/react";
+import type { Connection, NodeChange, OnBeforeDelete, OnConnectEnd } from "@xyflow/react";
 import {
   Background,
   BackgroundVariant,
@@ -13,14 +13,17 @@ import {
   SelectionMode,
 } from "@xyflow/react";
 import { useTheme } from "next-themes";
+import { isConnectable } from "@rectangles/rules";
 import { useCallback, useState } from "react";
 import { useAlignmentGuides } from "../hooks/use-alignment-guides";
 import { useBoardPanels } from "../hooks/use-board-panels";
+import { useBoardRules } from "../hooks/use-board-rules";
 import { GRID_SIZE } from "../lib/component-visuals";
-import { isWellFormedConnection } from "../lib/connection-check";
+import { checkBoardConnection, refusalBetweenHandles } from "../lib/connection-check";
 import { EDGE_TYPE } from "../lib/document-conversion";
 import { FIT_VIEW_OPTIONS } from "../lib/viewport";
 import { useCanvasViewStore } from "../store/canvas-view-store";
+import { useConnectionAdviceStore } from "../store/connection-advice-store";
 import { useWhiteboardStore, useWhiteboardStoreApi } from "../store/whiteboard-store-context";
 import type {
   ComponentNode as ComponentNodeType,
@@ -29,8 +32,11 @@ import type {
 import { AlignmentGuides } from "./alignment-guides";
 import { CanvasToolbar } from "./canvas-toolbar";
 import { ComponentNode } from "./component-node";
+import { ConnectionAdvice } from "./connection-advice";
 import { ConnectionEdge } from "./connection-edge";
+import { ConnectionHint } from "./connection-hint";
 import { EdgeMarkers } from "./edge-markers";
+import { EdgeWarningsProvider } from "./edge-warnings";
 
 const NODE_TYPES = { component: ComponentNode };
 const EDGE_TYPES = { [EDGE_TYPE]: ConnectionEdge };
@@ -45,7 +51,8 @@ export function WhiteboardCanvas() {
   const nodes = useWhiteboardStore((state) => state.nodes);
   const edges = useWhiteboardStore((state) => state.edges);
   const applyEdgeChanges = useWhiteboardStore((state) => state.applyEdgeChanges);
-  const connect = useWhiteboardStore((state) => state.connect);
+  const showAdvice = useConnectionAdviceStore((state) => state.show);
+  const closeAdvice = useConnectionAdviceStore((state) => state.close);
   const { guides, alignChanges } = useAlignmentGuides();
   const { resolvedTheme } = useTheme();
   const { show } = useBoardPanels();
@@ -65,12 +72,37 @@ export function WhiteboardCanvas() {
     [alignChanges, store],
   );
 
+  // Called on every pointer move of a connection drag, so it reuses the board's rule view.
+  const { graph, warnings } = useBoardRules();
   const isValidConnection = useCallback(
-    (connection: Connection | ConnectionEdgeType) => {
-      const state = store.getState();
-      return isWellFormedConnection(connection, state.nodes, state.edges);
+    (connection: Connection | ConnectionEdgeType) => isConnectable(checkBoardConnection(connection, graph)),
+    [graph],
+  );
+
+  // Makes the connection, then explains it if the rules warn and the person has not muted that warning.
+  const connectAndAdvise = useCallback(
+    (connection: Connection) => {
+      const verdict = store.getState().connect(connection);
+      const isMuted = verdict.kind === "warn" && useCanvasViewStore.getState().mutedConnectionRules.includes(verdict.ruleId);
+      if (verdict.kind === "warn" && !isMuted) {
+        showAdvice(verdict);
+      }
     },
-    [store],
+    [showAdvice, store],
+  );
+
+  // A connection let go over a port it cannot join: say why it was refused.
+  const explainRefusal = useCallback<OnConnectEnd>(
+    (_event, connectionState) => {
+      if (connectionState.isValid !== false || connectionState.fromHandle === null || connectionState.toHandle === null) {
+        return;
+      }
+      const refusal = refusalBetweenHandles(connectionState.fromHandle, connectionState.toHandle, graph);
+      if (refusal !== null) {
+        showAdvice(refusal);
+      }
+    },
+    [graph, showAdvice],
   );
 
   // The canvas would report a delete as separate node and edge changes, which would
@@ -87,6 +119,7 @@ export function WhiteboardCanvas() {
   );
 
   return (
+    <EdgeWarningsProvider value={warnings}>
     <ReactFlow
       nodes={nodes}
       edges={edges}
@@ -95,7 +128,9 @@ export function WhiteboardCanvas() {
       edgeTypes={EDGE_TYPES}
       onNodesChange={handleNodesChange}
       onEdgesChange={applyEdgeChanges}
-      onConnect={connect}
+      onConnect={connectAndAdvise}
+      onConnectStart={closeAdvice}
+      onConnectEnd={explainRefusal}
       onBeforeDelete={deleteInOneStep}
       onNodeDoubleClick={openInspector}
       onEdgeDoubleClick={openInspector}
@@ -121,6 +156,8 @@ export function WhiteboardCanvas() {
       <CanvasToolbar />
       <EdgeMarkers />
       <AlignmentGuides guides={guides} />
+      <ConnectionAdvice />
+      <ConnectionHint graph={graph} />
       {nodes.length === 0 && (
         <Panel position="top-center" className="pointer-events-none top-1/3! text-center">
           <CursorClickIcon weight="duotone" className="mx-auto size-8 text-muted-foreground" aria-hidden />
@@ -131,5 +168,6 @@ export function WhiteboardCanvas() {
         </Panel>
       )}
     </ReactFlow>
+    </EdgeWarningsProvider>
   );
 }

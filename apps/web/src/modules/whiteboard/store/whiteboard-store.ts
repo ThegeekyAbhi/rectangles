@@ -1,3 +1,5 @@
+import type { ConnectionVerdict } from "@rectangles/rules";
+import { isConnectable } from "@rectangles/rules";
 import type { Connection, EdgeChange, NodeChange, XYPosition } from "@xyflow/react";
 import { applyEdgeChanges, applyNodeChanges } from "@xyflow/react";
 import { temporal } from "zundo";
@@ -5,7 +7,7 @@ import { createStore } from "zustand/vanilla";
 import { uniqueName } from "@/lib/unique-name";
 import { readClipboard, writeClipboard } from "../lib/clipboard";
 import { completeConnectionConfig, defaultConfigFor, findComponentDefinition } from "../lib/component-catalog";
-import { isWellFormedConnection } from "../lib/connection-check";
+import { checkBoardConnection, toBoardGraph } from "../lib/connection-check";
 import { EDGE_TYPE, isSameDocument } from "../lib/document-conversion";
 import { pickCopiedElements, placePastedElements } from "../lib/paste-placement";
 import type { BoardElements, ComponentConfig, ComponentNode, ConnectionConfig, ConnectionEdge } from "../types";
@@ -16,8 +18,11 @@ export interface WhiteboardState extends BoardElements {
   /** Applies what the canvas reports: moves, selection, measured sizes. */
   applyNodeChanges(changes: NodeChange<ComponentNode>[]): void;
   applyEdgeChanges(changes: EdgeChange<ConnectionEdge>[]): void;
-  /** Adds an edge if the connection is well formed. */
-  connect(connection: Connection): void;
+  /**
+   * Adds an edge if the connection rules allow it, and returns their verdict, so the
+   * caller can explain a warning without judging the connection again.
+   */
+  connect(connection: Connection): ConnectionVerdict;
   /** Adds a component with default settings, selects it, and returns its id. */
   addNode(componentType: string, position: XYPosition): string;
   renameNode(nodeId: string, label: string): void;
@@ -104,8 +109,9 @@ export function createWhiteboardStore(initial: BoardElements) {
 
           connect(connection) {
             const { nodes, edges } = get();
-            if (!isWellFormedConnection(connection, nodes, edges)) {
-              return;
+            const verdict = checkBoardConnection(connection, toBoardGraph(nodes, edges));
+            if (!isConnectable(verdict)) {
+              return verdict;
             }
             const sourceType = nodes.find((node) => node.id === connection.source)?.data.componentType ?? "";
             const edge: ConnectionEdge = {
@@ -118,6 +124,7 @@ export function createWhiteboardStore(initial: BoardElements) {
               data: { config: completeConnectionConfig(sourceType, connection.sourceHandle ?? "", {}) },
             };
             set({ edges: [...edges, edge] });
+            return verdict;
           },
 
           addNode(componentType, position) {

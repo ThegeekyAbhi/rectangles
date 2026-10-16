@@ -1,6 +1,6 @@
 # Rectangles — Simulation Algorithm
 
-**Status:** Proposed · **Last updated:** 2026-10-14 · Companion to [PRD.md](PRD.md) and [MilestoneBased.md](MilestoneBased.md)
+**Status:** Proposed · **Last updated:** 2026-10-14 · Companion to [PRD.md](PRD.md) and [MilestoneBased.md](MilestoneBased.md). Realism gaps and the scale plan continue in [new-algorithm.md](new-algorithm.md)
 
 This document explains how the engine simulates a design, why that method was chosen, how far it
 will carry us as components are added, and what has to change in the kernel along the way.
@@ -82,7 +82,7 @@ no event is rounded to a tick.
 
 ### 2.3 The loop
 
-Everything the engine does is one loop, `step()` in `kernel/simulation.ts:247`.
+Everything the engine does is one loop, `step()` in `kernel/des/event-loop.ts:42`, which hands each event to `kernel/call-router.ts` `dispatch`.
 
 ```mermaid
 flowchart TD
@@ -103,7 +103,7 @@ flowchart TD
   more --> peek
 ```
 
-There are only three kinds of event (`kernel/simulation.ts:22`):
+There are only three kinds of event (`kernel/call-router.ts:13`):
 
 | Event | Meaning | Created by | Handler |
 | --- | --- | --- | --- |
@@ -112,7 +112,7 @@ There are only three kinds of event (`kernel/simulation.ts:22`):
 | `TIMER` | A component asked to be woken later | `context.schedule` | `onTimer` |
 
 The event list is a binary min-heap ordered by time, then by the order events were added
-(`kernel/event-queue.ts:138`). The second key is what makes two events at the same microsecond
+(`kernel/des/event-queue.ts`). The second key is what makes two events at the same microsecond
 run in a fixed order. Events are stored in typed arrays and calls are reused from a pool, so
 the loop allocates no memory per event.
 
@@ -199,15 +199,15 @@ call with an early reply, so no fourth event kind is needed.
 ### 2.7 Why the results can be trusted
 
 - **Deterministic.** Each node has its own random stream, seeded from the run seed and the
-  node's id (`kernel/simulation.ts:236`). No wall clock, no `Math.random`. The same design and
+  node's id (`kernel/runtime-graph.ts:50`). No wall clock, no `Math.random`. The same design and
   seed give byte-identical output.
 - **Checked against theory.** `tests/components/api-server/queueing-theory.test.ts` compares the
   engine with the textbook results for M/M/1, M/M/c (Erlang C) and M/M/1/K queues.
 - **Requests conserved.** Every test asserts that offered = succeeded + rejected + failed +
   timed out + still in flight (`tests/support/expect-requests-conserved.ts`).
 - **Guarded.** A run stops cleanly at 2,000,000 events or 600 simulated seconds
-  (`kernel/simulation.ts:19`). Replying twice, or to a call that was not yours, throws
-  (`kernel/simulation.ts:388`).
+  (`kernel/simulation.ts:16`). Replying twice, or to a call that was not yours, throws
+  (`kernel/call-router.ts:130`).
 
 ## 3. Why this algorithm
 
@@ -251,7 +251,7 @@ Three further lessons from neighbouring fields:
 
 - **Zero-delay events deserve their own fast path.** Logic simulators keep same-instant events
   in a separate queue. Our `ARRIVE` and `REPLY` are always scheduled for "now"
-  (`kernel/simulation.ts:381`, `:401`), so they could skip the heap. See §8, step 2.
+  (`kernel/call-router.ts:122`, `:142`), so they could skip the heap. See §8, step 2.
 - **Faults belong to the simulator, not the parts.** FoundationDB and TigerBeetle test their
   databases inside a single-threaded, seeded simulator whose network can delay, drop or
   partition messages. The components do not simulate their own failures. This is why K3 and
@@ -357,13 +357,13 @@ Names are proposals. Each is settled when its first component needs it.
 | # | Gap | Change | Touches | First needed |
 | --- | --- | --- | --- | --- |
 | K1 | A request carries nothing but `id`, `attempt` and `createdAtMicros` (`contract/request.ts:14`) | Add `operation` (`"read"` or `"write"`) and `key`. Later `sizeBytes` and `deadlineMicros` | `contract/request.ts`, `createRequest` | M5 database, M6 cache |
-| K2 | A reply carries only an outcome (`contract/context.ts:59`) | `context.reply(call, outcome, replyValue)`; the caller reads `call.replyValue`. A number, so nothing is allocated | `contract/`, `kernel/simulation.ts` `reply` | M6 cache (hit or miss) |
-| K3 | Links are instant (`kernel/simulation.ts` `send`, `reply`). Edges can carry settings now, but only ones a component reads (`PortSpec.connectionFields`, `SetupContext.connections`) | Add a kernel-owned `latencyMs` connection setting on every edge. The kernel delays `ARRIVE` and `REPLY` by it | `kernel/design-graph.ts`, `send`, `reply` | CDN, edge function, regions |
+| K2 | A reply carries only an outcome (`contract/context.ts:59`) | `context.reply(call, outcome, replyValue)`; the caller reads `call.replyValue`. A number, so nothing is allocated | `contract/`, `kernel/call-router.ts` `reply` | M6 cache (hit or miss) |
+| K3 | Links are instant (`kernel/call-router.ts` `send`, `reply`). Edges can carry settings now, but only ones a component reads (`PortSpec.connectionFields`, `SetupContext.connections`) | Add a kernel-owned `latencyMs` connection setting on every edge. The kernel delays `ARRIVE` and `REPLY` by it | `kernel/design-graph.ts`, `send`, `reply` | CDN, edge function, regions |
 | K4 | Components cannot be told about a failure (`contract/component-definition.ts:26`) | Run settings gain a fault schedule. The kernel delivers each fault to an optional `onFault` handler. Link faults are handled by the kernel itself | `contract/`, `kernel/` | M7 experiments |
-| K5 | A call can be reused while its children still point at it (`kernel/simulation.ts:427`) | Keep a call out of the pool until its children have finished. Add `call.isOpen` so a late child can tell its parent was already answered | `kernel/simulation.ts` only | Before the first component that answers early |
+| K5 | A call can be reused while its children still point at it (`kernel/call-pool.ts:43`) | Keep a call out of the pool until its children have finished. Add `call.isOpen` so a late child can tell its parent was already answered | `kernel/call-pool.ts`, `kernel/call-router.ts` | Before the first component that answers early |
 | K6 | Two scratch numbers per side of a call (`contract/request.ts:35`) | Expose a stable per-call index so a component can keep its own typed arrays | `contract/request.ts` | Search cluster, API gateway |
 | K7 | Random draws are uniform or exponential only (`contract/context.ts:7`) | Helpers in `contract/` built on `nextFloat`: a Zipf sampler for key skew, a gamma draw for service-time spread. No kernel change | `contract/` | M6 cache |
-| K8 | Runs stop at 2,000,000 events (`kernel/simulation.ts:19`) | See §8 | `kernel/` | High-traffic designs |
+| K8 | Runs stop at 2,000,000 events (`kernel/simulation.ts:16`) | See §8 | `kernel/` | High-traffic designs |
 
 **K5 in detail.** This is the only item that is a defect and not a missing feature. It was found
 by reading the code and has not yet been reproduced with a test.

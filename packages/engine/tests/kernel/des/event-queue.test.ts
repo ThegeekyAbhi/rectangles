@@ -1,6 +1,6 @@
 import { fc, test } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
-import { EventQueue, NO_EVENT } from "../../src/kernel/event-queue.ts";
+import { EventQueue, NO_EVENT } from "../../../src/kernel/des/event-queue.ts";
 
 interface PoppedEvent {
   readonly timeMicros: number;

@@ -69,7 +69,7 @@ const eslintConfig = defineConfig([
   {
     // Typed-array hot paths: indices are maintained by the data structure itself,
     // so the `undefined` that noUncheckedIndexedAccess adds can never occur.
-    files: ["src/kernel/event-queue.ts", "src/metrics/metric-recorder.ts"],
+    files: ["src/kernel/des/event-queue.ts", "src/kernel/des/event-loop.ts", "src/metrics/metric-recorder.ts"],
     rules: { "@typescript-eslint/no-non-null-assertion": "off" },
   },
   {

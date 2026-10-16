@@ -1,0 +1,28 @@
+{
+  "name": "@rectangles/rules",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:changed": "vitest run --changed",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@rectangles/engine": "workspace:*"
+  },
+  "devDependencies": {
+    "@eslint/js": "catalog:",
+    "eslint": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

@@ -1,9 +1,10 @@
 import type { ConfigFields } from "./config-field.ts";
 
 /**
- * How two connected ports talk. A connection is legal when both ends share a protocol.
- * `database-query` behaves exactly like `sync-request`; it is separate so that only
- * components with a database port can reach a database.
+ * How two connected ports talk. The engine runs any connection; `@rectangles/rules`
+ * decides which pairs the board allows. `database-query` behaves exactly like
+ * `sync-request`; it is separate so the rules can tell a database port apart, and they
+ * allow a request sent straight to a database only with a warning.
  */
 export type Protocol = "sync-request" | "database-query" | "async-publish" | "async-delivery";
 

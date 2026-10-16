@@ -7,6 +7,8 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "test:slow": "turbo run test:slow",
+    "test:changed": "turbo run test:changed",
     "test:watch": "turbo run test:watch",
     "sim": "node packages/engine/cli/main.ts",
     "bench": "pnpm --filter @rectangles/engine bench"
