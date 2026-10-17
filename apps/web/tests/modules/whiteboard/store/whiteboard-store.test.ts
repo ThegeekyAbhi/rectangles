@@ -67,11 +67,11 @@ describe("adding and editing nodes", () => {
   it("renames a node and replaces its config", () => {
     const id = store.getState().addNode("api-server", { x: 0, y: 0 });
     store.getState().renameNode(id, "Checkout API");
-    store.getState().setNodeConfig(id, { ...defaultConfigFor("api-server"), instances: 6 });
+    store.getState().setNodeConfig(id, { ...defaultConfigFor("api-server"), workers: 6 });
 
     expect(store.getState().nodes[0]?.data).toMatchObject({
       label: "Checkout API",
-      config: { instances: 6, concurrency: 50 },
+      config: { workers: 6, size: "medium" },
     });
   });
 });
@@ -279,5 +279,48 @@ describe("undo and redo", () => {
     const stepsBefore = undoSteps();
     store.getState().renameNode(id, "Client");
     expect(undoSteps()).toBe(stepsBefore);
+  });
+});
+
+describe("scaling out", () => {
+  beforeEach(() => {
+    store = createWhiteboardStore({ nodes: [], edges: [] });
+  });
+
+  it("adds a copy behind a load balancer as one undo step", () => {
+    const client = store.getState().addNode("client", { x: 0, y: 0 });
+    const api = store.getState().addNode("api-server", { x: 224, y: 0 });
+    store.getState().connect({ source: client, sourceHandle: "out", target: api, targetHandle: "in" });
+    const stepsBefore = undoSteps();
+
+    store.getState().scaleOut(api);
+    expect(labels().sort()).toEqual(["API server", "API server 2", "Client", "Load balancer"]);
+    expect(undoSteps()).toBe(stepsBefore + 1);
+
+    store.temporal.getState().undo();
+    expect(labels().sort()).toEqual(["API server", "Client"]);
+  });
+});
+
+describe("moving many components", () => {
+  beforeEach(() => {
+    store = createWhiteboardStore({ nodes: [], edges: [] });
+  });
+
+  it("moves them in one undo step and leaves settings and connections alone", () => {
+    const client = store.getState().addNode("client", { x: 0, y: 0 });
+    const api = store.getState().addNode("api-server", { x: 224, y: 0 });
+    store.getState().connect({ source: client, sourceHandle: "out", target: api, targetHandle: "in" });
+    const before = store.getState();
+    const stepsBefore = undoSteps();
+
+    store.getState().moveNodes(new Map([[client, { x: 32, y: 48 }], [api, { x: 288, y: 48 }]]));
+    expect(positions()).toEqual([{ x: 32, y: 48 }, { x: 288, y: 48 }]);
+    expect(undoSteps()).toBe(stepsBefore + 1);
+    expect(store.getState().edges).toEqual(before.edges);
+    expect(store.getState().nodes.map((node) => node.data)).toEqual(before.nodes.map((node) => node.data));
+
+    store.temporal.getState().undo();
+    expect(positions()).toEqual([{ x: 0, y: 0 }, { x: 224, y: 0 }]);
   });
 });

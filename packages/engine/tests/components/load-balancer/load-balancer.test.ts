@@ -12,6 +12,7 @@ import type { RunResult } from "../../../src/metrics/run-result.ts";
 import { registry } from "../../../src/registry.ts";
 import { expectRequestsConserved } from "../../support/expect-requests-conserved.ts";
 import { findCounter, findGauge } from "../../support/find-metric.ts";
+import { slotServer } from "../../support/slot-server.ts";
 
 type Config = Readonly<Record<string, unknown>>;
 
@@ -80,11 +81,11 @@ describe("load balancer routing", () => {
     expect(Math.max(...counts) - Math.min(...counts)).toBeLessThanOrEqual(1);
   });
 
-  // Same speed, very different sizes: 100, 2,500 and 400 slots, weighted to match.
+  // Same speed, very different sizes: 100, 2,500 and 400 workers, weighted to match.
   const unevenCapacity = [
-    { server: { instances: 2, concurrency: 50 }, weight: 1 },
-    { server: { instances: 5, concurrency: 500 }, weight: 25 },
-    { server: { instances: 8, concurrency: 50 }, weight: 4 },
+    { server: slotServer({ workers: 100, holdMs: 20 }), weight: 1 },
+    { server: slotServer({ workers: 2_500, holdMs: 20 }), weight: 25 },
+    { server: slotServer({ workers: 400, holdMs: 20 }), weight: 4 },
   ];
 
   function sharesByWeight(algorithm: string): number[] {
@@ -116,10 +117,10 @@ describe("load balancer routing", () => {
     expect(Math.abs(medium - 4 / 30)).toBeLessThan(tolerance);
   });
 
-  // One fast server and one ten times slower, each with 10 slots: 500 + 50 requests/s.
+  // One fast server and one ten times slower, each with 10 workers: 500 + 50 requests/s.
   const fastAndSlow = [
-    { server: { instances: 1, concurrency: 10, serviceTimeMs: 20, queueLimit: 1000 } },
-    { server: { instances: 1, concurrency: 10, serviceTimeMs: 200, queueLimit: 1000 } },
+    { server: slotServer({ workers: 10, holdMs: 20, queueLimit: 1000 }) },
+    { server: slotServer({ workers: 10, holdMs: 200, queueLimit: 1000 }) },
   ];
 
   // Health checks and retries off, so only the algorithm decides where traffic goes.
@@ -158,7 +159,7 @@ describe("load balancer routing", () => {
 
 describe("load balancer retries and health checks", () => {
   // One server that refuses almost everything next to one with plenty of room.
-  const refusing = { server: { instances: 1, concurrency: 1, serviceTimeMs: 600_000, queueLimit: 0 } };
+  const refusing = { server: slotServer({ workers: 1, holdMs: 600_000, queueLimit: 0 }) };
   const oneRefusing = [refusing, { server: {} }];
 
   it("retries a refused request on another target", () => {
@@ -208,7 +209,7 @@ describe("load balancer limits", () => {
   it("adds its latency to every request", () => {
     const result = run({
       loadBalancer: { latencyMs: 2 },
-      targets: [{ server: { serviceTimeMs: 10, serviceTimeDistribution: "constant" } }],
+      targets: [{ server: slotServer({ workers: 100, holdMs: 10, distribution: "constant" }) }],
     });
     expect(result.summary.latencyMs).toMatchObject({ p50: 12, max: 12 });
   });
@@ -217,7 +218,7 @@ describe("load balancer limits", () => {
     const result = run({
       client: { ratePerSecond: 500 },
       loadBalancer: { maxConnections: 5 },
-      targets: [{ server: { serviceTimeMs: 100, serviceTimeDistribution: "constant" } }],
+      targets: [{ server: slotServer({ workers: 100, holdMs: 100, distribution: "constant" }) }],
     });
     const rejected = findCounter(result, "lb", "requests.rejected").total;
     expect(rejected).toBeGreaterThan(0);
@@ -248,8 +249,9 @@ describe("request conservation", () => {
         fc.record({
           weight: fc.integer({ min: 1, max: 10 }),
           server: fc.record({
-            concurrency: fc.integer({ min: 1, max: 4 }),
-            serviceTimeMs: fc.double({ min: 0.1, max: 60, noNaN: true }),
+            workers: fc.integer({ min: 1, max: 4 }),
+            cpuTimeMs: fc.double({ min: 0, max: 5, noNaN: true }),
+            otherWaitMs: fc.double({ min: 0.1, max: 60, noNaN: true }),
             queueLimit: fc.integer({ min: 0, max: 20 }),
           }),
         }),

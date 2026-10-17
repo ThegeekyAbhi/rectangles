@@ -7,15 +7,17 @@ import type { ClientApiServerDesignOptions } from "../../support/client-api-serv
 import { buildClientApiServerDesign } from "../../support/client-api-server-design.ts";
 import { expectRequestsConserved } from "../../support/expect-requests-conserved.ts";
 import { findCounter, findGauge, findSample } from "../../support/find-metric.ts";
+import { slotServer } from "../../support/slot-server.ts";
+
+/** 100 workers ÷ 20 ms = 5,000 requests/s of capacity, with no CPU time to share. */
+const SERVER = slotServer({ workers: 100, holdMs: 20 });
+const CAPACITY_PER_SECOND = 5000;
 
 function run(options: ClientApiServerDesignOptions): RunResult {
-  const result = runSimulation(buildClientApiServerDesign(options), { registry });
+  const result = runSimulation(buildClientApiServerDesign({ apiServer: SERVER, ...options }), { registry });
   expectRequestsConserved(result);
   return result;
 }
-
-// Defaults: 2 instances × 50 concurrency ÷ 20 ms = 5,000 requests/s of capacity.
-const CAPACITY_PER_SECOND = 5000;
 
 describe("api server below capacity", () => {
   const result = run({ client: { ratePerSecond: 3000 }, durationSeconds: 20 });
@@ -31,7 +33,7 @@ describe("api server below capacity", () => {
     expect(findGauge(result, "api", "utilisation").mean).toBeCloseTo(3000 / CAPACITY_PER_SECOND, 1);
   });
 
-  it("takes the service time on average", () => {
+  it("takes its hold time on average", () => {
     expect(result.summary.latencyMs.mean / 20).toBeCloseTo(1, 1);
   });
 });
@@ -39,7 +41,7 @@ describe("api server below capacity", () => {
 describe("api server above capacity", () => {
   const result = run({ client: { ratePerSecond: 6000 }, durationSeconds: 20 });
 
-  it("runs every slot flat out", () => {
+  it("runs every worker flat out", () => {
     const utilisation = findGauge(result, "api", "utilisation");
     expect(utilisation.max).toBe(1);
     // Skip the first second, while the server is still filling up.
@@ -64,35 +66,29 @@ describe("api server above capacity", () => {
   });
 
   it("adds queueing time to latency", () => {
-    // A full queue of 100 drains at 5,000/s, so a request waits about 20 ms for a slot.
+    // A full queue of 100 drains at 5,000/s, so a request waits about 20 ms for a worker.
     expect(findSample(result, "api", "queue.wait").mean / 20).toBeCloseTo(1, 0);
     expect(result.summary.latencyMs.p99).toBeGreaterThan(60);
   });
 });
 
 describe("api server capacity arithmetic", () => {
-  it("moves the saturation point by one instance's worth when an instance is added", () => {
+  it("moves the saturation point by the workers added", () => {
     const load = { client: { ratePerSecond: 6000 }, durationSeconds: 20 };
-    const twoInstances = run({ ...load, apiServer: { instances: 2 } });
-    const threeInstances = run({ ...load, apiServer: { instances: 3 } });
+    const hundred = run({ ...load, apiServer: slotServer({ workers: 100, holdMs: 20 }) });
+    const hundredAndFifty = run({ ...load, apiServer: slotServer({ workers: 150, holdMs: 20 }) });
 
-    // 3 × 50 ÷ 20 ms = 7,500 requests/s, comfortably above the 6,000 offered.
-    expect(twoInstances.summary.rejected).toBeGreaterThan(10_000);
-    expect(threeInstances.summary.rejected).toBe(0);
-    expect(findGauge(threeInstances, "api", "utilisation").mean).toBeCloseTo(6000 / 7500, 1);
+    // 150 ÷ 20 ms = 7,500 requests/s, comfortably above the 6,000 offered.
+    expect(hundred.summary.rejected).toBeGreaterThan(10_000);
+    expect(hundredAndFifty.summary.rejected).toBe(0);
+    expect(findGauge(hundredAndFifty, "api", "utilisation").mean).toBeCloseTo(6000 / 7500, 1);
   });
 
   it("serves in arrival order", () => {
-    // One slot and constant work: the nth request finishes n service times in.
+    // One worker and constant work: the nth request finishes n hold times in.
     const result = run({
       client: { ratePerSecond: 50 },
-      apiServer: {
-        instances: 1,
-        concurrency: 1,
-        serviceTimeMs: 10,
-        serviceTimeDistribution: "constant",
-        queueLimit: 1000,
-      },
+      apiServer: slotServer({ workers: 1, holdMs: 10, distribution: "constant", queueLimit: 1000 }),
       durationSeconds: 20,
     });
     const wait = findSample(result, "api", "queue.wait");
@@ -100,10 +96,10 @@ describe("api server capacity arithmetic", () => {
     expect(result.summary.latencyMs.max).toBeCloseTo(wait.max + 10, 6);
   });
 
-  it("rejects immediately with no queue when every slot is busy", () => {
+  it("rejects immediately with no queue when every worker is busy", () => {
     const result = run({
       client: { ratePerSecond: 1000 },
-      apiServer: { instances: 1, concurrency: 1, serviceTimeMs: 10, queueLimit: 0 },
+      apiServer: slotServer({ workers: 1, holdMs: 10, queueLimit: 0 }),
     });
     expect(result.summary.rejected).toBeGreaterThan(0);
     expect(findGauge(result, "api", "queue.depth").max).toBe(0);
@@ -128,40 +124,73 @@ describe("determinism", () => {
 
   it("keeps a client's arrivals unchanged when another node's config changes", () => {
     const baseline = run({ ...options, seed: 7 });
-    const variant = run({ ...options, seed: 7, apiServer: { instances: 5, serviceTimeMs: 3 } });
+    const variant = run({ ...options, seed: 7, apiServer: slotServer({ workers: 250, holdMs: 3 }) });
     expect(findCounter(variant, "client", "end-to-end.offered").windows).toEqual(
       findCounter(baseline, "client", "end-to-end.offered").windows,
     );
   });
 
   it("matches the recorded results of a reference run", () => {
-    const result = run({ ...options, seed: 7, apiServer: { instances: 1, concurrency: 30 } });
+    const result = run({ ...options, seed: 7, apiServer: slotServer({ workers: 30, holdMs: 20 }) });
     expect({ eventsProcessed: result.eventsProcessed, summary: result.summary }).toMatchSnapshot();
   });
 });
 
-describe("summary", () => {
-  it("gives the slots and the service time", () => {
-    expect(
-      apiServerDefinition.summarise({
-        instances: 4,
-        concurrency: 1_500,
-        serviceTimeMs: 12.5,
-        serviceTimeDistribution: "exponential",
-        queueLimit: 100,
-      }),
-    ).toBe("4 × 1.5K slots · 12.5 ms");
+describe("cpu", () => {
+  // Medium is 4 vCPU; 5 ms of CPU each gives 800 requests/s, far below what 1,000 workers allow.
+  const cpuBound = { workers: 1_000, cpuTimeMs: 5, otherWaitMs: 0, timeDistribution: "constant", queueLimit: 10_000 };
+
+  it("completes CPU-bound work at cores ÷ CPU time, with workers to spare", () => {
+    const result = run({ client: { ratePerSecond: 1_000 }, apiServer: { ...cpuBound, size: "medium" }, durationSeconds: 20 });
+    expect(findGauge(result, "api", "cpu.utilisation").max).toBe(1);
+    expect(findGauge(result, "api", "cpu.queue-depth").max).toBeGreaterThan(10);
+    expect(findCounter(result, "api", "requests.completed").total / 20).toBeCloseTo(800, -2);
   });
 
-  it("gives a long service time in seconds", () => {
+  it("doubles CPU-bound throughput a size up, from 4 to 8 vCPU", () => {
+    const result = run({ client: { ratePerSecond: 1_000 }, apiServer: { ...cpuBound, size: "large" }, durationSeconds: 20 });
+    // 8 ÷ 5 ms = 1,600 requests/s: now nothing waits for a core.
+    expect(findGauge(result, "api", "cpu.utilisation").mean).toBeCloseTo(1_000 / 1_600, 1);
+    expect(result.summary.rejected).toBe(0);
+  });
+
+  it("holds the worker but not a core while it waits on things off the board", () => {
+    const result = run({
+      client: { ratePerSecond: 100 },
+      apiServer: { workers: 1_000, cpuTimeMs: 1, otherWaitMs: 99, timeDistribution: "constant" },
+      durationSeconds: 10,
+    });
+    // 100/s × 100 ms = 10 workers busy, but 100/s × 1 ms ÷ 4 cores = 2.5% of the CPU.
+    expect(findGauge(result, "api", "utilisation").mean).toBeCloseTo(10 / 1_000, 2);
+    expect(findGauge(result, "api", "cpu.utilisation").mean).toBeCloseTo(0.025, 2);
+    expect(result.summary.latencyMs.mean).toBeCloseTo(100, 0);
+  });
+});
+
+describe("summary", () => {
+  it("gives the size, the workers and the time a request takes", () => {
     expect(
       apiServerDefinition.summarise({
-        instances: 2,
-        concurrency: 50,
-        serviceTimeMs: 2_000,
-        serviceTimeDistribution: "constant",
+        size: "large",
+        workers: 1_500,
+        cpuTimeMs: 2.5,
+        otherWaitMs: 10,
+        timeDistribution: "exponential",
         queueLimit: 100,
       }),
-    ).toBe("2 × 50 slots · 2 s");
+    ).toBe("8 vCPU · 1.5K workers · 12.5 ms");
+  });
+
+  it("gives a long time in seconds", () => {
+    expect(
+      apiServerDefinition.summarise({
+        size: "medium",
+        workers: 50,
+        cpuTimeMs: 0,
+        otherWaitMs: 2_000,
+        timeDistribution: "constant",
+        queueLimit: 100,
+      }),
+    ).toBe("4 vCPU · 50 workers · 2 s");
   });
 });

@@ -67,10 +67,14 @@ test("run a board, overload it, and read the results", async ({ page }) => {
   await dragFromLibrary(page, "Client", { x: board.x + 220, y: board.y + 150 });
   await dragFromLibrary(page, "API server", { x: board.x + 620, y: board.y + 150 });
   await expect(runButton).toHaveAccessibleDescription(/Connect a client/);
+  // The reason shows on the disabled button itself, not elsewhere in the header.
+  await page.locator("[data-slot=run-blocked]").hover();
+  await expect(page.getByRole("tooltip")).toContainText(/Connect a client/);
+  await page.mouse.move(0, 0);
 
   // Each component shows its key settings on its face, without being opened.
   await expect(summaryOf(page, "Client")).toHaveText("100 req/s · steady");
-  await expect(summaryOf(page, "API server")).toHaveText("2 × 50 slots · 20 ms");
+  await expect(summaryOf(page, "API server")).toHaveText("4 vCPU · 50 workers · 20 ms");
 
   await drag(
     page,
@@ -91,7 +95,7 @@ test("run a board, overload it, and read the results", async ({ page }) => {
   await expect(runStatus).toHaveText("Finished · 120 s");
   expect(Math.max(0, ...(await page.evaluate(() => window.longTaskDurations)))).toBeLessThan(100);
 
-  // 100 requests a second against room for 5,000: everything succeeds.
+  // 100 requests a second against room for 2,000 (4 vCPU ÷ 2 ms of CPU each): everything succeeds.
   await expect(tile(page, "Throughput")).toContainText(/\d+ requests\/s/);
   await expect(tile(page, "Errors")).toContainText("0%");
   await expect(page.locator("[data-slot=edge-flow-label]")).toHaveText(/\d+\/s/);
@@ -101,16 +105,17 @@ test("run a board, overload it, and read the results", async ({ page }) => {
   // Each metric of the selected component is listed with its definition.
   await nodeNamed(page, "API server").click();
   await results.getByRole("tab", { name: "API server" }).click();
-  await expect(results.locator("[data-slot=node-metric]")).toHaveCount(5);
+  // Workers, queue and waits, outcomes, database wait, and the CPU gauges.
+  await expect(results.locator("[data-slot=node-metric]")).toHaveCount(9);
   await results.getByRole("button", { name: "What queue.depth means" }).hover();
-  await expect(page.getByRole("tooltip")).toHaveText("Requests waiting for a free slot.");
+  await expect(page.getByRole("tooltip")).toHaveText("Requests waiting for a free worker.");
 
-  // Slow the server until it cannot keep up: 100 slots at 2 s each is 50 requests a second.
+  // Slow the server until it cannot keep up: 50 workers each waiting 2 s is 25 requests a second.
   const inspector = page.getByRole("complementary", { name: "Inspector" });
-  const serviceTime = inspector.getByRole("textbox", { name: "Service time" });
-  await serviceTime.fill("2000");
-  await serviceTime.press("Enter");
-  await expect(summaryOf(page, "API server")).toHaveText("2 × 50 slots · 2 s");
+  const otherWait = inspector.getByRole("textbox", { name: "Other wait" });
+  await otherWait.fill("2000");
+  await otherWait.press("Enter");
+  await expect(summaryOf(page, "API server")).toHaveText("4 vCPU · 50 workers · 2 s");
   await expect(results.getByText(/from before your last change/)).toBeVisible();
 
   await page.getByRole("button", { name: "Run again" }).click();

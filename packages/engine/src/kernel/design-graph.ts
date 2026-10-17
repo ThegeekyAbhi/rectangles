@@ -54,6 +54,8 @@ export interface DesignIssue {
   readonly nodeId?: string;
   readonly edgeId?: string;
   readonly field?: string;
+  /** For a setting's issue, what is wrong without saying where, for callers that name it their own way. */
+  readonly detail?: string;
 }
 
 /** Thrown when a design cannot be run. Lists every problem found, not just the first. */
@@ -176,6 +178,7 @@ export function buildDesignGraph(design: unknown, registry: ComponentRegistry): 
           code: "invalid-config",
           nodeId,
           field: issue.field,
+          detail: issue.message,
           message: `Node "${nodeId}", field "${issue.field}": ${issue.message}`,
         });
       }
@@ -263,6 +266,7 @@ export function buildDesignGraph(design: unknown, registry: ComponentRegistry): 
           code: "invalid-connection-config",
           edgeId,
           field: issue.field,
+          detail: issue.message,
           message: `Edge "${edgeId}", field "${issue.field}": ${issue.message}`,
         });
       }

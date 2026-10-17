@@ -10,7 +10,7 @@
     {
       "id": "api",
       "type": "api-server",
-      "config": { "instances": 2, "concurrency": 50, "serviceTimeMs": 20, "queueLimit": 100 }
+      "config": { "size": "medium", "workers": 50, "cpuTimeMs": 2, "otherWaitMs": 18, "queueLimit": 100 }
     }
   ],
   "edges": [

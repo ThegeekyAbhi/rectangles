@@ -27,9 +27,16 @@ describe("findRunBlocker", () => {
   });
 
   it("reports what the engine finds wrong, and how many more problems there are", () => {
-    const broken = { ...api!, config: { instances: 0, queueLimit: -1 } };
-    expect(findRunBlocker(design({ nodes: [client!, broken] }))).toMatch(
-      /Node "api", field "instances".*\(and 1 more\)/,
+    const broken = { ...api!, config: { workers: 0, queueLimit: -1 } };
+    expect(findRunBlocker(design({ nodes: [client!, broken] }), () => "Checkout API")).toBe(
+      "“Checkout API”, Workers: Must be between 1 and 1000000. (and 1 more)",
+    );
+  });
+
+  it("explains a setting left over from an older version, and how to clear it", () => {
+    const stale = { ...api!, config: { ...api!.config, instances: 2 } };
+    expect(findRunBlocker(design({ nodes: [client!, stale] }), () => "API server 2")).toMatch(
+      /^“API server 2” has a setting this version no longer uses \(instances\)\. Reload the page/,
     );
   });
 });

@@ -96,7 +96,7 @@ Layering inside a module: `routes → service → repository`. Never skip a laye
 ```
 src/
   contract/               What a component author sees: Context, ComponentDefinition, config
-                          field specs, ports, metrics, time units. Imports nothing else
+                          field specs, ports, metrics, resources, time units. Imports nothing else
   kernel/                 Knows no component by name
     des/                  Generic DES core: event queue, event loop (clock, limits). Knows no calls, nodes or ports
     call-pool.ts          Reusable call records
@@ -104,6 +104,7 @@ src/
     node-context.ts       Context and SetupContext, bound to one node
     runtime-graph.ts      Design graph → runtime nodes and edges
     simulation.ts         Public API: createSimulation, runSimulation
+    resources/            Hardware every component shares the same way: cpu-pool.ts (cores, FIFO)
     design-graph.ts, prng.ts, config-validation.ts, event-budget.ts
   metrics/                Recording in 1 s windows, run result, run summary, live run snapshot
   components/

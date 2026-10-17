@@ -140,3 +140,20 @@ describe("requestsBy", () => {
     expect(requestsBy(ramp, 20)).toBe(requestsBy({ ...ramp, pattern: "step" }, 20));
   });
 });
+
+describe("trafficSegmentAt with a ramp too short to split", () => {
+  it("always ends a segment after the time asked about, so arrivals move on", () => {
+    // Found by the request-conservation property: a ramp lasting 2.5e-323 s made every
+    // piece zero long, and the client asked for the same segment forever.
+    const pattern = {
+      pattern: "ramp" as const,
+      ratePerSecond: 1993,
+      targetRatePerSecond: 1286,
+      changeAtSeconds: 7.4e-323,
+      changeDurationSeconds: 2.5e-323,
+    };
+    for (const seconds of [7.4e-323, 8e-323, 9e-323]) {
+      expect(trafficSegmentAt(pattern, seconds).endSeconds).toBeGreaterThan(seconds);
+    }
+  });
+});

@@ -2,16 +2,16 @@
   "schemaVersion": 1,
   "run": { "durationSeconds": 10, "seed": 1 },
   "nodes": [
-    { "id": "client", "type": "client", "config": { "pattern": "steady", "ratePerSecond": 10000 } },
+    { "id": "client", "type": "client", "config": { "pattern": "steady", "ratePerSecond": 5000 } },
     { "id": "lb", "type": "load-balancer", "config": { "algorithm": "least-connections" } },
-    { "id": "api-small", "type": "api-server", "config": { "instances": 2, "concurrency": 50, "serviceTimeMs": 20 } },
-    { "id": "api-large", "type": "api-server", "config": { "instances": 5, "concurrency": 500, "serviceTimeMs": 20 } },
-    { "id": "api-medium", "type": "api-server", "config": { "instances": 8, "concurrency": 50, "serviceTimeMs": 20 } }
+    { "id": "api-small", "type": "api-server", "config": { "size": "small", "workers": 200, "cpuTimeMs": 4, "otherWaitMs": 16 } },
+    { "id": "api-xlarge", "type": "api-server", "config": { "size": "xlarge", "workers": 200, "cpuTimeMs": 4, "otherWaitMs": 16 } },
+    { "id": "api-large", "type": "api-server", "config": { "size": "large", "workers": 200, "cpuTimeMs": 4, "otherWaitMs": 16 } }
   ],
   "edges": [
     { "id": "client-to-lb", "from": { "node": "client", "port": "out" }, "to": { "node": "lb", "port": "in" } },
     { "id": "lb-to-small", "from": { "node": "lb", "port": "out" }, "to": { "node": "api-small", "port": "in" }, "config": { "weight": 1 } },
-    { "id": "lb-to-large", "from": { "node": "lb", "port": "out" }, "to": { "node": "api-large", "port": "in" }, "config": { "weight": 25 } },
-    { "id": "lb-to-medium", "from": { "node": "lb", "port": "out" }, "to": { "node": "api-medium", "port": "in" }, "config": { "weight": 4 } }
+    { "id": "lb-to-xlarge", "from": { "node": "lb", "port": "out" }, "to": { "node": "api-xlarge", "port": "in" }, "config": { "weight": 8 } },
+    { "id": "lb-to-large", "from": { "node": "lb", "port": "out" }, "to": { "node": "api-large", "port": "in" }, "config": { "weight": 4 } }
   ]
 }

@@ -10,6 +10,11 @@ interface ConfigFieldBase {
   /** One line explaining what changing this field does. */
   readonly description: string;
   readonly relevantWhen?: FieldRelevance;
+  /**
+   * The inspector heading this field sits under, such as `Scale up`. Fields with the same
+   * section are shown together, in the order their sections first appear.
+   */
+  readonly section?: string;
 }
 
 /** A numeric field. `integer` additionally rejects fractional values. */

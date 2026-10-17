@@ -11,12 +11,11 @@ describe("M/M/c: ten servers, 80% utilised", () => {
   const scenario = {
     arrivalsPerSecond: 4000,
     serviceTimeMs: 2,
-    instances: 2,
-    concurrency: 5,
+    servers: 10,
     queueLimit: 1_000_000,
     durationSeconds: 120,
   };
-  const serverCount = scenario.instances * scenario.concurrency;
+  const serverCount = scenario.servers;
   const servicesPerSecond = 1000 / scenario.serviceTimeMs;
   const expectedWaitMs =
     1000 * meanWaitSecondsMmc(scenario.arrivalsPerSecond, servicesPerSecond, serverCount);

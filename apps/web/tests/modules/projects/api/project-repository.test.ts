@@ -16,7 +16,7 @@ import {
 import { openLocalDatabase } from "@/modules/projects/lib/local-database";
 
 const board: ProjectDocument = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   nodes: [{ id: "client", type: "client", label: "Client", position: { x: 0, y: 0 }, config: {} }],
   edges: [],
 };
@@ -33,7 +33,7 @@ describe("project repository", () => {
     expect(project).toMatchObject({ name: "Untitled project", revision: 0, deletedAt: null });
     expect(await loadProject(project.id)).toMatchObject({
       status: "ready",
-      document: { schemaVersion: 2, nodes: [], edges: [] },
+      document: { schemaVersion: 3, nodes: [], edges: [] },
     });
   });
 
@@ -51,7 +51,7 @@ describe("project repository", () => {
   });
 
   it("refuses to create a project from a board that is not valid", async () => {
-    await expect(createProjectFromDocument("Broken", { schemaVersion: 2, nodes: "none" })).rejects.toThrow(
+    await expect(createProjectFromDocument("Broken", { schemaVersion: 3, nodes: "none" })).rejects.toThrow(
       /damaged/,
     );
     expect(await listProjects()).toEqual([]);

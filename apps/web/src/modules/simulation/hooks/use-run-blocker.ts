@@ -9,8 +9,11 @@ export function useRunBlocker(): string | null {
   const nodes = useWhiteboardStore((state) => state.nodes);
   const edges = useWhiteboardStore((state) => state.edges);
   const durationSeconds = useRunStore((state) => state.durationSeconds);
-  return useMemo(
-    () => findRunBlocker(documentToDesign(elementsToDocument(nodes, edges), durationSeconds)),
-    [nodes, edges, durationSeconds],
-  );
+  return useMemo(() => {
+    const labels = new Map(nodes.map((node) => [node.id, node.data.label]));
+    return findRunBlocker(
+      documentToDesign(elementsToDocument(nodes, edges), durationSeconds),
+      (nodeId) => labels.get(nodeId) ?? nodeId,
+    );
+  }, [nodes, edges, durationSeconds]);
 }

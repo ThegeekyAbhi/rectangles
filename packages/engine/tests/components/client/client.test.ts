@@ -10,6 +10,7 @@ import type { ClientApiServerDesignOptions } from "../../support/client-api-serv
 import { buildClientApiServerDesign } from "../../support/client-api-server-design.ts";
 import { expectRequestsConserved } from "../../support/expect-requests-conserved.ts";
 import { findCounter } from "../../support/find-metric.ts";
+import { slotServer } from "../../support/slot-server.ts";
 
 function run(options: ClientApiServerDesignOptions): RunResult {
   const result = runSimulation(buildClientApiServerDesign(options), { registry });
@@ -136,7 +137,7 @@ describe("client with several targets", () => {
   });
 
   it("sends a retry to the target that refused the attempt before it", () => {
-    const refusesEverything = { instances: 1, concurrency: 1, serviceTimeMs: 600_000, queueLimit: 0 };
+    const refusesEverything = slotServer({ workers: 1, holdMs: 600_000, queueLimit: 0 });
     const withoutRetries = runWithTwoServers({ ratePerSecond: 200 }, refusesEverything);
     const withRetries = runWithTwoServers(
       { ratePerSecond: 200, retries: 2, retryBackoffMs: 1 },
@@ -150,7 +151,7 @@ describe("client with several targets", () => {
 describe("client timeouts and retries", () => {
   // Constant 50 ms of work against a 10 ms timeout: every request times out.
   const alwaysTooSlow = {
-    apiServer: { serviceTimeMs: 50, serviceTimeDistribution: "constant" },
+    apiServer: slotServer({ workers: 100, holdMs: 50, distribution: "constant" }),
     durationSeconds: 10,
   } as const;
 
@@ -192,7 +193,7 @@ describe("client timeouts and retries", () => {
 
   it("retries rejected requests", () => {
     const overloaded = {
-      apiServer: { instances: 1, concurrency: 1, serviceTimeMs: 100, queueLimit: 0 },
+      apiServer: slotServer({ workers: 1, holdMs: 100, queueLimit: 0 }),
       durationSeconds: 10,
     };
     const withoutRetries = run({ ...overloaded, client: { ratePerSecond: 200 } });
@@ -217,10 +218,10 @@ describe("request conservation", () => {
         retryBackoffMs: fc.double({ min: 0, max: 20, noNaN: true }),
       }),
       fc.record({
-        instances: fc.integer({ min: 1, max: 3 }),
-        concurrency: fc.integer({ min: 1, max: 4 }),
-        serviceTimeMs: fc.double({ min: 0.1, max: 60, noNaN: true }),
-        serviceTimeDistribution: fc.constantFrom("exponential", "constant"),
+        workers: fc.integer({ min: 1, max: 12 }),
+        cpuTimeMs: fc.double({ min: 0, max: 5, noNaN: true }),
+        otherWaitMs: fc.double({ min: 0.1, max: 60, noNaN: true }),
+        timeDistribution: fc.constantFrom("exponential", "constant"),
         queueLimit: fc.integer({ min: 0, max: 20 }),
       }),
       fc.integer({ min: 0, max: 1_000_000 }),

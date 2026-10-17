@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { RunResult } from "../../../src/metrics/run-result.ts";
 import { findCounter, findGauge, findSample } from "../../support/find-metric.ts";
 import { READS_ONLY, runClientApiDatabase, WRITES_ONLY } from "../../support/run-client-api-database.ts";
+import { slotServer } from "../../support/slot-server.ts";
 
 function databaseCalls(result: RunResult) {
   const calls = result.nodes.find((node) => node.id === "database")?.calls;
@@ -115,7 +116,7 @@ describe("API server calling a database", () => {
     // 2 connections ÷ 50 ms = 40 queries/s, offered 100/s.
     const result = runClientApiDatabase({
       client: { ...READS_ONLY, ratePerSecond: 100 },
-      apiServer: { instances: 1, concurrency: 20, serviceTimeMs: 1, queueLimit: 10 },
+      apiServer: slotServer({ workers: 20, holdMs: 1, queueLimit: 10 }),
       database: { maxConnections: 2, readTimeMs: 50 },
       durationSeconds: 20,
     });

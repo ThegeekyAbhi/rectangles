@@ -30,6 +30,13 @@ export interface ComponentDefinition<Fields extends ConfigFields = ConfigFields>
    * Lets the engine tell before a run whether it fits the event limit.
    */
   expectedRequests?(config: ConfigOf<Fields>, seconds: number, targetCount: number): number;
+  /**
+   * How the board adds another copy of this component to scale out: the component type it
+   * puts in front to spread traffic, the out port of that type that reaches the copies, and
+   * the config section the inspector shows the action after. Absent for components that
+   * are not scaled by copying.
+   */
+  readonly scaleOut?: { readonly via: string; readonly port: string; readonly afterSection?: string };
 }
 
 /** What a component does. Every handler except `init` is optional. */

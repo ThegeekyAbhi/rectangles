@@ -1,4 +1,5 @@
 import type { SimulationDesign } from "../../src/kernel/design-graph.ts";
+import { slotServer } from "./slot-server.ts";
 
 export interface ClientApiDatabaseDesignOptions {
   readonly client?: Readonly<Record<string, unknown>>;
@@ -10,13 +11,7 @@ export interface ClientApiDatabaseDesignOptions {
   readonly seed?: number;
 }
 
-const TRANSPARENT_API_SERVER = {
-  instances: 1,
-  concurrency: 10_000,
-  serviceTimeMs: 0.001,
-  serviceTimeDistribution: "constant",
-  queueLimit: 0,
-};
+const TRANSPARENT_API_SERVER = slotServer({ workers: 10_000, holdMs: 0.001, distribution: "constant", queueLimit: 0 });
 
 /** One client calling one API server, which queries one database. */
 export function buildClientApiDatabaseDesign(options: ClientApiDatabaseDesignOptions = {}): SimulationDesign {

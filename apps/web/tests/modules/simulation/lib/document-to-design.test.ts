@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { documentToDesign } from "@/modules/simulation/lib/document-to-design";
 
 const document: ProjectDocument = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   nodes: [
     { id: "client", type: "client", label: "Shoppers", position: { x: 0, y: 0 }, config: { ratePerSecond: 250 } },
     { id: "api", type: "api-server", label: "Checkout API", position: { x: 400, y: 0 }, config: {} },

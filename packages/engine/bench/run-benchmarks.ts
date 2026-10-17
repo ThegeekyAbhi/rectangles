@@ -44,8 +44,9 @@ function buildLoadBalancedDesign(ratePerSecond: number): SimulationDesign {
   };
 }
 
-// The API server's default capacity is 5,000 requests/s, so the second scenario spends
-// the whole run saturated: full queue, rejections, and close to the 2M event budget.
+// The API server's default capacity is 2,000 requests/s (4 vCPU ÷ 2 ms of CPU each), so
+// the second scenario spends the whole run saturated: full queue, rejections, and close
+// to the 2M event budget.
 const scenarios = [
   { name: "steady: 1,000 requests/s for 60 s", design: buildDesign(1000) },
   { name: "saturated: 8,000 requests/s for 60 s", design: buildDesign(8000) },

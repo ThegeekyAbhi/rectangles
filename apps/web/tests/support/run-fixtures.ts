@@ -10,7 +10,7 @@ export const overloadedDesign: SimulationDesign = {
     {
       id: "api",
       type: "api-server",
-      config: { instances: 1, concurrency: 4, serviceTimeMs: 12, queueLimit: 10 },
+      config: { workers: 4, cpuTimeMs: 0, otherWaitMs: 12, queueLimit: 10 },
     },
   ],
   edges: [{ id: "client-to-api", from: { node: "client", port: "out" }, to: { node: "api", port: "in" } }],

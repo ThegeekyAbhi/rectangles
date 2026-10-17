@@ -12,6 +12,7 @@ import {
   MapTrifoldIcon,
   NumberSquareOneIcon,
   SquareHalfBottomIcon,
+  TreeStructureIcon,
 } from "@phosphor-icons/react";
 import { Panel, useReactFlow, useStore as useFlowStore } from "@xyflow/react";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
+import { useAutoLayout } from "../hooks/use-auto-layout";
 import { ANIMATED_FIT_VIEW_OPTIONS, ZOOM_DURATION_MS } from "../lib/viewport";
 import { useCanvasViewStore } from "../store/canvas-view-store";
 import { useWhiteboardHistory } from "../store/whiteboard-store-context";
@@ -95,8 +97,8 @@ const FLOATING_BAR_CLASS =
 
 /**
  * Undo, redo and the view controls, floating in the corner of the canvas. They fold
- * down to one button to leave more of the board in sight. The results toggle sits
- * beside them in its own box and stays put when they fold.
+ * down to one button to leave more of the board in sight. The results toggle and Tidy up
+ * sit beside them, each in its own box, and stay put when they fold.
  */
 export function CanvasToolbar() {
   const canUndo = useWhiteboardHistory((history) => history.pastStates.length > 0);
@@ -104,6 +106,7 @@ export function CanvasToolbar() {
   const undo = useWhiteboardHistory((history) => history.undo);
   const redo = useWhiteboardHistory((history) => history.redo);
   const isCollapsed = useCanvasViewStore((state) => state.isCanvasToolbarCollapsed);
+  const { tidy, canTidy, isSelection } = useAutoLayout();
   const toggleCollapsed = useCanvasViewStore((state) => state.toggleCanvasToolbar);
 
   return (
@@ -113,6 +116,18 @@ export function CanvasToolbar() {
         <PanelToggle panel="results" name="results" shortcut="⌘J">
           <SquareHalfBottomIcon aria-hidden />
         </PanelToggle>
+      </div>
+      {/* Tidy up acts on the whole board, so it stands on its own rather than among the view tools. */}
+      <div className={FLOATING_BAR_CLASS}>
+        <ToolbarButton
+          label={isSelection ? "Tidy selection" : "Tidy up"}
+          shortcut="⇧T"
+          disabled={!canTidy}
+          onClick={() => void tidy()}
+        >
+          {/* A hierarchy flowing left to right, the way a tidied board reads. */}
+          <TreeStructureIcon aria-hidden />
+        </ToolbarButton>
       </div>
       <div role="toolbar" aria-label="Canvas tools" className={FLOATING_BAR_CLASS}>
         {!isCollapsed && (

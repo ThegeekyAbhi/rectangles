@@ -4,12 +4,14 @@ import type { MetricHandle } from "../../contract/metric.ts";
 import { CAPACITY_METRIC_IDS } from "../../contract/metric.ts";
 import type { PortHandle } from "../../contract/port.ts";
 import type { Call, Outcome } from "../../contract/request.ts";
+import type { CpuHandle } from "../../contract/resources.ts";
 import type { Micros } from "../../contract/time-units.ts";
 import { microsToMilliseconds, millisecondsToMicros } from "../../contract/time-units.ts";
 import type { ApiServerConfig } from "./definition.ts";
-import { apiServerDatabaseConnectionFields, apiServerDefinition } from "./definition.ts";
+import { apiServerDatabaseConnectionFields, apiServerDefinition, CORES_BY_SIZE } from "./definition.ts";
 
-const TIMER_SERVICE_DONE = 0;
+const TIMER_CPU_DONE = 0;
+const TIMER_WAIT_DONE = 1;
 
 interface ApiServerState {
   readonly database: PortHandle;
@@ -20,32 +22,61 @@ interface ApiServerState {
   readonly rejected: MetricHandle;
   readonly failed: MetricHandle;
   readonly databaseWait: MetricHandle;
-  readonly slotCount: number;
-  readonly meanServiceMicros: Micros;
+  readonly cpu: CpuHandle;
+  readonly meanCpuMicros: Micros;
+  readonly meanWaitMicros: Micros;
   /** The database target of each query a request makes, in order. Empty with no database. */
   readonly queryTargets: Int32Array;
-  busySlots: number;
-  /** Waiting calls, oldest at `queueHead`. Entries before it have been served. */
+  busyWorkers: number;
+  /** Calls waiting for a worker, oldest at `queueHead`. Entries before it have been served. */
   queue: Call[];
   queueHead: number;
 }
 
 type ApiServerContext = Context<ApiServerConfig, ApiServerState>;
 
-/**
- * Starts work on a call. The call's `calleeScratchA` holds the time it arrived; once its
- * queries begin it holds when they began, and `calleeScratchB` counts queries sent.
+/*
+ * A request's path: wait for a worker → compute on a core (the kernel's CPU pool) → wait
+ * on anything off the board → query each database in turn → answer and free the worker.
+ * A stage with no time is skipped, so it costs no event.
+ *
+ * The call's `calleeScratchA` holds when it arrived; once its queries begin it holds when
+ * they began, and `calleeScratchB` counts queries sent.
  */
-function startService(context: ApiServerContext, call: Call): void {
+
+function startWork(context: ApiServerContext, call: Call): void {
   const { state, config } = context;
-  state.busySlots++;
-  context.setGauge(state.utilisation, state.busySlots / state.slotCount);
+  state.busyWorkers++;
+  context.setGauge(state.utilisation, state.busyWorkers / config.workers);
   context.sample(state.queueWait, microsToMilliseconds(context.nowMicros - call.calleeScratchA));
-  const serviceMicros =
-    config.serviceTimeDistribution === "constant"
-      ? state.meanServiceMicros
-      : Math.round(context.prng.nextExponential(state.meanServiceMicros));
-  context.schedule(serviceMicros, TIMER_SERVICE_DONE, call);
+  if (state.meanCpuMicros > 0) {
+    context.useCpu(state.cpu, call, state.meanCpuMicros, config.timeDistribution, TIMER_CPU_DONE);
+  } else {
+    startOtherWait(context, call);
+  }
+}
+
+function startOtherWait(context: ApiServerContext, call: Call): void {
+  const { state, config } = context;
+  if (state.meanWaitMicros === 0) {
+    startQueries(context, call);
+    return;
+  }
+  const waitMicros =
+    config.timeDistribution === "constant"
+      ? state.meanWaitMicros
+      : Math.round(context.prng.nextExponential(state.meanWaitMicros));
+  context.schedule(waitMicros, TIMER_WAIT_DONE, call);
+}
+
+function startQueries(context: ApiServerContext, call: Call): void {
+  if (context.state.queryTargets.length === 0) {
+    finish(context, call, "ok");
+    return;
+  }
+  call.calleeScratchA = context.nowMicros;
+  call.calleeScratchB = 0;
+  sendNextQuery(context, call);
 }
 
 /** Sends the call's next query, the one `calleeScratchB` points at. */
@@ -56,16 +87,16 @@ function sendNextQuery(context: ApiServerContext, call: Call): void {
   context.send(state.database, call.request, call, state.queryTargets[step]);
 }
 
-/** Answers a call, frees its slot and starts the oldest waiting call, if any. */
+/** Answers a call, frees its worker and starts the oldest waiting call, if any. */
 function finish(context: ApiServerContext, call: Call, outcome: Outcome): void {
-  const { state } = context;
-  state.busySlots--;
+  const { state, config } = context;
+  state.busyWorkers--;
   context.count(outcome === "ok" ? state.completed : state.failed);
   context.reply(call, outcome);
 
   const next = state.queue[state.queueHead];
   if (next === undefined) {
-    context.setGauge(state.utilisation, state.busySlots / state.slotCount);
+    context.setGauge(state.utilisation, state.busyWorkers / config.workers);
     return;
   }
   state.queueHead++;
@@ -76,7 +107,7 @@ function finish(context: ApiServerContext, call: Call, outcome: Outcome): void {
     state.queueHead = 0;
   }
   context.setGauge(state.queueDepth, state.queue.length - state.queueHead);
-  startService(context, next);
+  startWork(context, next);
 }
 
 export const apiServerComponent = defineComponent({
@@ -98,10 +129,14 @@ export const apiServerComponent = defineComponent({
         rejected: setup.metric("requests.rejected"),
         failed: setup.metric("requests.failed"),
         databaseWait: setup.metric("database.wait"),
-        slotCount: setup.config.instances * setup.config.concurrency,
-        meanServiceMicros: millisecondsToMicros(setup.config.serviceTimeMs),
+        cpu: setup.cpu(CORES_BY_SIZE[setup.config.size], {
+          utilisation: setup.metric("cpu.utilisation"),
+          queueDepth: setup.metric("cpu.queue-depth"),
+        }),
+        meanCpuMicros: millisecondsToMicros(setup.config.cpuTimeMs),
+        meanWaitMicros: millisecondsToMicros(setup.config.otherWaitMs),
         queryTargets: Int32Array.from(queryTargets),
-        busySlots: 0,
+        busyWorkers: 0,
         queue: [],
         queueHead: 0,
       };
@@ -110,8 +145,8 @@ export const apiServerComponent = defineComponent({
     onArrive(context, call) {
       const { state } = context;
       call.calleeScratchA = context.nowMicros;
-      if (state.busySlots < state.slotCount) {
-        startService(context, call);
+      if (state.busyWorkers < context.config.workers) {
+        startWork(context, call);
         return;
       }
       const waiting = state.queue.length - state.queueHead;
@@ -124,17 +159,15 @@ export const apiServerComponent = defineComponent({
       context.setGauge(state.queueDepth, waiting + 1);
     },
 
-    onTimer(context, _timerKind, call) {
+    onTimer(context, timerKind, call) {
       if (call === null) {
         return;
       }
-      if (context.state.queryTargets.length === 0) {
-        finish(context, call, "ok");
-        return;
+      if (timerKind === TIMER_CPU_DONE) {
+        startOtherWait(context, call);
+      } else {
+        startQueries(context, call);
       }
-      call.calleeScratchA = context.nowMicros;
-      call.calleeScratchB = 0;
-      sendNextQuery(context, call);
     },
 
     onReply(context, query, outcome) {

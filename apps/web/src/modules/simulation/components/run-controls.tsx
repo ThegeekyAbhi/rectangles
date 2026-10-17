@@ -1,6 +1,6 @@
 "use client";
 
-import { FastForwardIcon, PauseIcon, PlayIcon, StopIcon } from "@phosphor-icons/react";
+import { FastForwardIcon, PauseIcon, PlayIcon, StopIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
@@ -14,8 +14,8 @@ import { useRunStore } from "../store/run-store-context";
 const RUN_BLOCKER_ID = "run-blocker";
 
 /**
- * Starts a run. While the board cannot be run the button is off, and pointing at it
- * says what is missing.
+ * Starts a run. While the board cannot be run the button is off, and pointing at it or
+ * focusing it says what is missing.
  */
 function RunButton({
   blocker,
@@ -41,12 +41,24 @@ function RunButton({
     return button;
   }
   return (
-    <Tooltip>
-      {/* A disabled button ignores the pointer, so the wrapper is what gets hovered. */}
+    <Tooltip delayDuration={0}>
+      {/*
+       * A disabled button gets no pointer or focus events, so the wrapper is what is hovered
+       * and focused. It is focusable so keyboard users can reach the reason too.
+       */}
       <TooltipTrigger asChild>
-        <span className="inline-flex cursor-not-allowed">{button}</span>
+        <span
+          tabIndex={0}
+          data-slot="run-blocked"
+          className="inline-flex cursor-not-allowed rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
+          {button}
+        </span>
       </TooltipTrigger>
-      <TooltipContent>{blocker}</TooltipContent>
+      <TooltipContent side="bottom" className="max-w-80">
+        <WarningCircleIcon className="size-3.5 shrink-0" aria-hidden />
+        {blocker}
+      </TooltipContent>
       <span id={RUN_BLOCKER_ID} className="sr-only">
         {blocker}
       </span>

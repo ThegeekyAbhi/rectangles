@@ -3,7 +3,7 @@ import type { ProjectDocument } from "../src/project-document.ts";
 import { createEmptyDocument, parseProjectDocument } from "../src/project-document.ts";
 
 const document: ProjectDocument = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   nodes: [
     {
       id: "client",
@@ -12,7 +12,7 @@ const document: ProjectDocument = {
       position: { x: 0, y: 40.5 },
       config: { pattern: "steady", ratePerSecond: 100 },
     },
-    { id: "api", type: "api-server", label: "API server", position: { x: 320, y: 40 }, config: {} },
+    { id: "api", type: "api-server", label: "API server", position: { x: 320, y: 40 }, config: { workers: 50 } },
   ],
   edges: [{ id: "e1", from: { node: "client", port: "out" }, to: { node: "api", port: "in" }, config: { weight: 3 } }],
 };
@@ -32,14 +32,76 @@ describe("parseProjectDocument", () => {
   });
 
   it("refuses a document from a newer version, saying so", () => {
-    expect(messageFor({ ...document, schemaVersion: 3 })).toMatch(/newer version of Rectangles/);
+    expect(messageFor({ ...document, schemaVersion: 4 })).toMatch(/newer version of Rectangles/);
   });
 
   it("brings a version 1 document forward, giving every edge empty settings", () => {
     const edges = document.edges.map((edge) => ({ id: edge.id, from: edge.from, to: edge.to }));
-    expect(parseProjectDocument({ ...document, schemaVersion: 1, edges })).toEqual({
-      ok: true,
-      document: { ...document, edges: edges.map((edge) => ({ ...edge, config: {} })) },
+    const result = parseProjectDocument({ ...document, schemaVersion: 1, edges });
+    expect(result).toMatchObject({ ok: true, document: { schemaVersion: 3, edges: edges.map((edge) => ({ ...edge, config: {} })) } });
+  });
+
+  describe("version 2 → 3: an API server becomes one server", () => {
+    const apiServerSavedAs = (config: Record<string, unknown>) => {
+      const result = parseProjectDocument({
+        ...document,
+        schemaVersion: 2,
+        nodes: [{ ...document.nodes[1], config }],
+      });
+      return result.ok ? result.document.nodes[0]?.config : undefined;
+    };
+
+    it("turns slots into workers and service time into waiting with no CPU, so it runs as before", () => {
+      expect(apiServerSavedAs({ instances: 3, concurrency: 40, serviceTimeMs: 25, serviceTimeDistribution: "constant", queueLimit: 7 })).toEqual({
+        size: "medium",
+        workers: 120,
+        cpuTimeMs: 0,
+        otherWaitMs: 25,
+        timeDistribution: "constant",
+        queueLimit: 7,
+      });
+    });
+
+    it("uses version 2's defaults for settings that were left out", () => {
+      expect(apiServerSavedAs({})).toEqual({
+        size: "medium",
+        workers: 100,
+        cpuTimeMs: 0,
+        otherWaitMs: 20,
+        timeDistribution: "exponential",
+      });
+    });
+
+    it("carries a value that was not a number over, for validation to report", () => {
+      expect(apiServerSavedAs({ instances: "two" })).toMatchObject({ workers: "two" });
+    });
+
+    it("repairs a newer document that kept old settings, keeping what the user chose over filled-in defaults", () => {
+      const result = parseProjectDocument({
+        ...document,
+        nodes: [
+          {
+            ...document.nodes[1],
+            config: { size: "medium", workers: 50, cpuTimeMs: 2, otherWaitMs: 18, instances: 3, concurrency: 40, serviceTimeMs: 25 },
+          },
+        ],
+      });
+      expect(result.ok && result.document.nodes[0]?.config).toEqual({
+        size: "medium",
+        workers: 120,
+        cpuTimeMs: 0,
+        otherWaitMs: 25,
+        timeDistribution: "exponential",
+      });
+    });
+
+    it("leaves a current API server without old settings untouched", () => {
+      expect(parseProjectDocument(document)).toEqual({ ok: true, document });
+    });
+
+    it("leaves other components alone", () => {
+      const result = parseProjectDocument({ ...document, schemaVersion: 2 });
+      expect(result.ok && result.document.nodes[0]?.config).toEqual(document.nodes[0]?.config);
     });
   });
 

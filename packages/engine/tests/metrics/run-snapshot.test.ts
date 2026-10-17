@@ -4,12 +4,13 @@ import type { RunResult } from "../../src/metrics/run-result.ts";
 import type { RunSnapshot } from "../../src/metrics/run-snapshot.ts";
 import { registry } from "../../src/registry.ts";
 import { buildClientApiServerDesign } from "../support/client-api-server-design.ts";
+import { slotServer } from "../support/slot-server.ts";
 
 // Enough traffic to queue and reject, so every kind of metric has something in it.
 const design = buildClientApiServerDesign({
   durationSeconds: 4,
   client: { ratePerSecond: 400 },
-  apiServer: { instances: 1, concurrency: 4, serviceTimeMs: 12, queueLimit: 10 },
+  apiServer: slotServer({ workers: 4, holdMs: 12, queueLimit: 10 }),
 });
 
 /** The windows of every series in a snapshot or result, keyed by where they came from. */

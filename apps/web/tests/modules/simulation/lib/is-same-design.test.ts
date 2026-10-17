@@ -12,7 +12,7 @@ const api: ComponentNode = {
   id: "api",
   type: "component",
   position: { x: 400, y: 0 },
-  data: { componentType: "api-server", label: "API server", config: { instances: 2 } },
+  data: { componentType: "api-server", label: "API server", config: { workers: 50 } },
 };
 const board: BoardElements = {
   nodes: [client, api],
@@ -26,7 +26,7 @@ describe("isSameDesign", () => {
   });
 
   it("notices a changed setting", () => {
-    const resized = { ...api, data: { ...api.data, config: { instances: 4 } } };
+    const resized = { ...api, data: { ...api.data, config: { workers: 100 } } };
     expect(isSameDesign(board, { ...board, nodes: [client, resized] })).toBe(false);
   });
 

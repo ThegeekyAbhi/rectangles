@@ -3,6 +3,7 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { ANIMATED_FIT_VIEW_OPTIONS, ZOOM_DURATION_MS } from "../lib/viewport";
 import { useCanvasViewStore } from "../store/canvas-view-store";
 import { useWhiteboardStoreApi } from "../store/whiteboard-store-context";
+import { useAutoLayout } from "./use-auto-layout";
 import { useBoardPanels } from "./use-board-panels";
 
 /**
@@ -14,6 +15,7 @@ export function useWhiteboardShortcuts({ onOpenPalette }: { onOpenPalette: () =>
   const store = useWhiteboardStoreApi();
   const { fitView, zoomIn, zoomOut, zoomTo } = useReactFlow();
   const { toggle } = useBoardPanels();
+  const { tidy } = useAutoLayout();
   const preventDefault = { preventDefault: true };
 
   useHotkeys("mod+z", () => store.temporal.getState().undo(), preventDefault);
@@ -28,6 +30,7 @@ export function useWhiteboardShortcuts({ onOpenPalette }: { onOpenPalette: () =>
   useHotkeys("mod+minus", () => void zoomOut({ duration: ZOOM_DURATION_MS }), preventDefault);
   useHotkeys("mod+0", () => void zoomTo(1, { duration: ZOOM_DURATION_MS }), preventDefault);
   useHotkeys("m", () => useCanvasViewStore.getState().toggleMinimap());
+  useHotkeys("shift+t", () => void tidy(), preventDefault);
   useHotkeys("bracketleft", () => toggle("library"));
   useHotkeys("bracketright", () => toggle("inspector"));
   useHotkeys("mod+j", () => toggle("results"), preventDefault);

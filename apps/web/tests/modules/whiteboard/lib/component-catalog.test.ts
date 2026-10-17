@@ -9,7 +9,7 @@ import {
 describe("summariseConfig", () => {
   it("gives a component's key settings in one line", () => {
     expect(summariseConfig("client", defaultConfigFor("client"))).toBe("100 req/s · steady");
-    expect(summariseConfig("api-server", defaultConfigFor("api-server"))).toBe("2 × 50 slots · 20 ms");
+    expect(summariseConfig("api-server", defaultConfigFor("api-server"))).toBe("4 vCPU · 50 workers · 20 ms");
   });
 
   it("fills in defaults for settings a saved config lacks", () => {
@@ -17,7 +17,7 @@ describe("summariseConfig", () => {
   });
 
   it("gives nothing for settings that are not valid", () => {
-    expect(summariseConfig("api-server", { instances: 0 })).toBeNull();
+    expect(summariseConfig("api-server", { workers: 0 })).toBeNull();
   });
 
   it("gives nothing for a component this version does not know", () => {

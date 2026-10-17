@@ -48,7 +48,7 @@ export function buildRuntimeNodes(
       metricHandleById.set(spec.id, recorder.register(nodeIndex, spec));
     }
     const context = new NodeContext(services, nodeIndex, graphNode, new Prng(graph.run.seed, graphNode.id));
-    context.state = behaviour.init(new NodeSetupContext(graphNode, metricHandleById));
+    context.state = behaviour.init(new NodeSetupContext(graphNode, metricHandleById, context));
     return { graphNode, behaviour, context, callsReceived: 0, callsReplied: 0 };
   });
 }

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "nodes": [
     {
       "id": "client",
@@ -37,9 +37,10 @@
         "y": 224
       },
       "config": {
-        "instances": 2,
-        "concurrency": 50,
-        "serviceTimeMs": 20
+        "size": "medium",
+        "workers": 50,
+        "cpuTimeMs": 2,
+        "otherWaitMs": 18
       }
     },
     {
@@ -51,9 +52,10 @@
         "y": -176
       },
       "config": {
-        "instances": 2,
-        "concurrency": 50,
-        "serviceTimeMs": 20
+        "size": "medium",
+        "workers": 50,
+        "cpuTimeMs": 2,
+        "otherWaitMs": 18
       }
     }
   ],

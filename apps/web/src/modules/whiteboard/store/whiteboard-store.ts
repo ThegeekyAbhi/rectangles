@@ -10,6 +10,7 @@ import { completeConnectionConfig, defaultConfigFor, findComponentDefinition } f
 import { checkBoardConnection, toBoardGraph } from "../lib/connection-check";
 import { EDGE_TYPE, isSameDocument } from "../lib/document-conversion";
 import { pickCopiedElements, placePastedElements } from "../lib/paste-placement";
+import { planScaleOut } from "../lib/scale-out";
 import type { BoardElements, ComponentConfig, ComponentNode, ConnectionConfig, ConnectionEdge } from "../types";
 
 const HISTORY_LIMIT = 100;
@@ -36,6 +37,13 @@ export interface WhiteboardState extends BoardElements {
   copySelection(): number;
   pasteClipboard(): void;
   duplicateSelection(): void;
+  /**
+   * Adds a copy of a component behind a load balancer, inserting one if none feeds it yet.
+   * One undo step. Does nothing for a component that does not scale by copying.
+   */
+  scaleOut(nodeId: string): void;
+  /** Moves the given components, in one step. Settings and connections are left alone. */
+  moveNodes(positions: ReadonlyMap<string, XYPosition>): void;
 }
 
 function withSelection<Element extends { selected?: boolean }>(
@@ -220,6 +228,22 @@ export function createWhiteboardStore(initial: BoardElements) {
             const copied = pickCopiedElements(nodes, edges);
             if (copied.nodes.length > 0) {
               insertElements(placePastedElements(copied, 1, () => crypto.randomUUID()));
+            }
+          },
+
+          moveNodes(positions) {
+            set((state) => ({
+              nodes: state.nodes.map((node) => {
+                const position = positions.get(node.id);
+                return position === undefined ? node : { ...node, position };
+              }),
+            }));
+          },
+
+          scaleOut(nodeId) {
+            const scaled = planScaleOut(get(), nodeId, () => crypto.randomUUID());
+            if (scaled !== null) {
+              set(scaled);
             }
           },
         };

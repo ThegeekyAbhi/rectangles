@@ -2,6 +2,7 @@ import { expect } from "vitest";
 import type { RunResult } from "../../src/metrics/run-result.ts";
 import { buildClientApiServerDesign } from "./client-api-server-design.ts";
 import { runToCompletion } from "./run-to-completion.ts";
+import { slotServer } from "./slot-server.ts";
 
 /**
  * Shared by the queueing-theory tests, which hold the engine to the textbook M/M/c
@@ -16,8 +17,7 @@ const TOLERANCE = 0.05;
 export interface QueueScenario {
   readonly arrivalsPerSecond: number;
   readonly serviceTimeMs: number;
-  readonly instances: number;
-  readonly concurrency: number;
+  readonly servers: number;
   readonly queueLimit: number;
   readonly durationSeconds: number;
 }
@@ -26,12 +26,11 @@ export function runQueue(scenario: QueueScenario, seed: number): RunResult {
   return runToCompletion(
     buildClientApiServerDesign({
       client: { ratePerSecond: scenario.arrivalsPerSecond, timeoutMs: 600_000 },
-      apiServer: {
-        instances: scenario.instances,
-        concurrency: scenario.concurrency,
-        serviceTimeMs: scenario.serviceTimeMs,
+      apiServer: slotServer({
+        workers: scenario.servers,
+        holdMs: scenario.serviceTimeMs,
         queueLimit: scenario.queueLimit,
-      },
+      }),
       durationSeconds: scenario.durationSeconds,
       seed,
     }),

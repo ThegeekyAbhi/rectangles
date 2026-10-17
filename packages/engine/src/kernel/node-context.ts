@@ -3,10 +3,12 @@ import type { Context, RandomSource, SetupContext, TimerHandle } from "../contra
 import type { MetricHandle } from "../contract/metric.ts";
 import type { PortHandle } from "../contract/port.ts";
 import type { Call, Operation, Outcome, Request } from "../contract/request.ts";
+import type { CpuHandle, CpuMetrics, WorkDistribution } from "../contract/resources.ts";
 import type { Micros } from "../contract/time-units.ts";
 import type { MetricRecorder } from "../metrics/metric-recorder.ts";
 import type { ValidatedConfig } from "./config-validation.ts";
 import type { GraphNode } from "./design-graph.ts";
+import { CpuPool } from "./resources/cpu-pool.ts";
 
 /** The run's clock. */
 export interface Clock {
@@ -25,6 +27,8 @@ export interface KernelServices {
     argument: number,
   ): TimerHandle;
   cancelTimer(timer: TimerHandle): void;
+  /** Schedules the end of a piece of CPU work on one of a node's pools. */
+  scheduleCpuDone(nodeIndex: number, delayMicros: Micros, timerKind: number, call: Call, poolIndex: number): void;
   createRequest(attempt: number, operation: Operation, key: number): Request;
   targetsOf(nodeIndex: number, port: PortHandle): readonly number[];
   send(callerIndex: number, port: PortHandle, request: Request, parent: Call | null, targetIndex: number): Call;
@@ -36,11 +40,17 @@ export class NodeSetupContext implements SetupContext<unknown> {
   readonly config: ValidatedConfig;
   private readonly node: GraphNode;
   private readonly metricHandleById: ReadonlyMap<string, MetricHandle>;
+  private readonly context: NodeContext;
 
-  constructor(node: GraphNode, metricHandleById: ReadonlyMap<string, MetricHandle>) {
+  constructor(node: GraphNode, metricHandleById: ReadonlyMap<string, MetricHandle>, context: NodeContext) {
     this.node = node;
     this.config = node.config;
     this.metricHandleById = metricHandleById;
+    this.context = context;
+  }
+
+  cpu(cores: number, metrics: CpuMetrics): CpuHandle {
+    return this.context.addCpuPool(cores, metrics);
   }
 
   metric(metricId: string): MetricHandle {
@@ -89,6 +99,7 @@ export class NodeContext implements Context<unknown, unknown> {
   private readonly clock: Clock;
   private readonly recorder: MetricRecorder;
   private readonly nodeIndex: number;
+  private readonly cpuPools: CpuPool[] = [];
 
   constructor(services: KernelServices, nodeIndex: number, node: GraphNode, prng: RandomSource) {
     this.services = services;
@@ -114,6 +125,38 @@ export class NodeContext implements Context<unknown, unknown> {
 
   cancel(timer: TimerHandle): void {
     this.services.cancelTimer(timer);
+  }
+
+  useCpu(cpu: CpuHandle, call: Call, meanMicros: Micros, distribution: WorkDistribution, timerKind: number): void {
+    this.cpuPool(cpu).use(call, meanMicros, distribution, timerKind);
+  }
+
+  /** Set-up only: adds a CPU pool to this node. */
+  addCpuPool(cores: number, metrics: CpuMetrics): CpuHandle {
+    const pool = new CpuPool(this.cpuPools.length, cores, metrics, {
+      setGauge: (metric, value) => {
+        this.setGauge(metric, value);
+      },
+      nextExponential: (mean) => this.prng.nextExponential(mean),
+      scheduleDone: (delayMicros, timerKind, call, poolIndex) => {
+        this.services.scheduleCpuDone(this.nodeIndex, delayMicros, timerKind, call, poolIndex);
+      },
+    });
+    this.cpuPools.push(pool);
+    return pool.index;
+  }
+
+  /** Kernel only: a piece of work on pool `poolIndex` has ended. */
+  finishCpuWork(poolIndex: number): void {
+    this.cpuPool(poolIndex).finish();
+  }
+
+  private cpuPool(handle: CpuHandle): CpuPool {
+    const pool = this.cpuPools[handle];
+    if (pool === undefined) {
+      throw new RangeError(`CPU handle ${handle} does not belong to this component.`);
+    }
+    return pool;
   }
 
   createRequest(attempt: number, operation: Operation = "read", key = 0): Request {

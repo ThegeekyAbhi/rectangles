@@ -12,10 +12,12 @@ import type { KernelServices } from "./node-context.ts";
 import type { RuntimeEdge, RuntimeNode } from "./runtime-graph.ts";
 import { buildRuntimeNodes } from "./runtime-graph.ts";
 
-/** The three kinds of event. Adding one means adding it here and to `dispatch`. */
+/** The kinds of event. Adding one means adding it here and to `dispatch`. */
 const EVENT_ARRIVE = 0;
 const EVENT_REPLY = 1;
 const EVENT_TIMER = 2;
+/** A piece of CPU work ended: the kernel frees the core, then the node hears of it as a timer. */
+const EVENT_CPU_DONE = 3;
 
 /**
  * Moves calls between nodes: sends, replies and timers become events, and events become
@@ -55,6 +57,9 @@ export class CallRouter implements KernelServices, EventDispatcher {
     const call = this.pool.callAt(callSlot);
     if (kind === EVENT_TIMER) {
       node.behaviour.onTimer?.(node.context, timerKind, call, argument);
+    } else if (kind === EVENT_CPU_DONE) {
+      node.context.finishCpuWork(argument);
+      node.behaviour.onTimer?.(node.context, timerKind, call, 0);
     } else if (call === null) {
       return;
     } else if (kind === EVENT_ARRIVE) {
@@ -86,6 +91,14 @@ export class CallRouter implements KernelServices, EventDispatcher {
 
   cancelTimer(timer: TimerHandle): void {
     this.queue.cancel(timer);
+  }
+
+  scheduleCpuDone(nodeIndex: number, delayMicros: Micros, timerKind: number, call: Call, poolIndex: number): void {
+    if (!(delayMicros >= 0)) {
+      throw new RangeError(`CPU work must take zero time or more, got ${delayMicros}.`);
+    }
+    const { slot } = call as CallRecord;
+    this.queue.push(this.clock.nowMicros + delayMicros, EVENT_CPU_DONE, nodeIndex, slot, timerKind, poolIndex);
   }
 
   createRequest(attempt: number, operation: Operation, key: number): Request {

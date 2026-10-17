@@ -41,7 +41,7 @@ describe("diagramBounds", () => {
   });
 
   it("has a size for an empty diagram", () => {
-    const bounds = diagramBounds({ schemaVersion: 2, nodes: [], edges: [] });
+    const bounds = diagramBounds({ schemaVersion: 3, nodes: [], edges: [] });
     expect(bounds.width).toBeGreaterThan(0);
     expect(bounds.height).toBeGreaterThan(0);
   });

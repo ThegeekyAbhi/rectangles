@@ -13,6 +13,7 @@ import {
   SidebarSimpleIcon,
   SquareHalfBottomIcon,
   TrashIcon,
+  TreeStructureIcon,
 } from "@phosphor-icons/react";
 import { useReactFlow } from "@xyflow/react";
 import { useRouter } from "next/navigation";
@@ -29,6 +30,7 @@ import {
   CommandShortcut,
 } from "@/components/ui/command";
 import { THEMES } from "@/components/theme-toggle";
+import { useAutoLayout } from "../hooks/use-auto-layout";
 import { useAddComponent } from "../hooks/use-add-component";
 import { useBoardPanels } from "../hooks/use-board-panels";
 import { listComponentDefinitions } from "../lib/component-catalog";
@@ -53,6 +55,7 @@ export function CommandPalette({
   const isInspectorEnabled = useCanvasViewStore((state) => state.isInspectorEnabled);
   const { setTheme } = useTheme();
   const isMinimapVisible = useCanvasViewStore((state) => state.isMinimapVisible);
+  const { tidy, canTidy, isSelection } = useAutoLayout();
   const toggleMinimap = useCanvasViewStore((state) => state.toggleMinimap);
 
   const run = (action: () => void) => () => {
@@ -126,6 +129,13 @@ export function CommandPalette({
             </CommandItem>
           </CommandGroup>
           <CommandGroup heading="View">
+            {canTidy && (
+              <CommandItem keywords={["auto layout", "arrange", "organise"]} onSelect={run(() => void tidy())}>
+                <TreeStructureIcon aria-hidden />
+                {isSelection ? "Tidy selection" : "Tidy up layout"}
+                <CommandShortcut>⇧T</CommandShortcut>
+              </CommandItem>
+            )}
             <CommandItem onSelect={run(() => void fitView(ANIMATED_FIT_VIEW_OPTIONS))}>
               <CornersOutIcon aria-hidden />
               Fit to view

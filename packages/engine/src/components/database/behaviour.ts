@@ -3,6 +3,7 @@ import type { Context } from "../../contract/context.ts";
 import type { MetricHandle } from "../../contract/metric.ts";
 import { CAPACITY_METRIC_IDS } from "../../contract/metric.ts";
 import type { Call } from "../../contract/request.ts";
+import type { CpuHandle } from "../../contract/resources.ts";
 import type { Micros } from "../../contract/time-units.ts";
 import { microsToMilliseconds, millisecondsToMicros } from "../../contract/time-units.ts";
 import type { BufferCache } from "./buffer-cache.ts";
@@ -23,8 +24,6 @@ interface DatabaseState {
   readonly utilisation: MetricHandle;
   readonly queueDepth: MetricHandle;
   readonly connectionWait: MetricHandle;
-  readonly cpuUtilisation: MetricHandle;
-  readonly cpuQueueDepth: MetricHandle;
   readonly locksWaitingGauge: MetricHandle;
   readonly lockWait: MetricHandle;
   readonly cacheHits: MetricHandle;
@@ -40,11 +39,10 @@ interface DatabaseState {
   readonly meanReadMicros: Micros;
   readonly meanWriteMicros: Micros;
   readonly connectionQueue: CallQueue;
-  readonly coreQueue: CallQueue;
+  readonly cpu: CpuHandle;
   readonly locks: RowLocks;
   readonly cache: BufferCache;
   connectionsInUse: number;
-  busyCores: number;
   locksWaiting: number;
 }
 
@@ -52,7 +50,7 @@ type DatabaseContext = Context<DatabaseConfig, DatabaseState>;
 
 /*
  * A query's path: wait for a connection → (a write) take its row's lock → read the row
- * from disk if it is not in memory → wait for a core → run → release everything.
+ * from disk if it is not in memory → run on a core (the kernel's CPU pool) → release everything.
  *
  * While a query waits for a connection or a lock, its `calleeScratchB` holds the timer
  * that gives up on the wait, and `calleeScratchA` holds when the lock wait began. The
@@ -88,46 +86,23 @@ function fetchRow(context: DatabaseContext, call: Call): void {
   const { state } = context;
   if (touchRow(state.cache, call.request.key)) {
     context.count(state.cacheHits);
-    requestCore(context, call);
+    execute(context, call);
     return;
   }
   context.count(state.cacheMisses);
   context.schedule(state.diskReadMicros, TIMER_DISK_READ_DONE, call);
 }
 
-function requestCore(context: DatabaseContext, call: Call): void {
+/** Runs the query on a core, waiting for one if every core is busy. */
+function execute(context: DatabaseContext, call: Call): void {
   const { state, config } = context;
-  if (state.busyCores < config.cpuCores) {
-    startExecution(context, call);
-    return;
-  }
-  enqueue(state.coreQueue, call);
-  context.setGauge(state.cpuQueueDepth, queueLength(state.coreQueue));
-}
-
-function startExecution(context: DatabaseContext, call: Call): void {
-  const { state, config } = context;
-  state.busyCores++;
-  context.setGauge(state.cpuUtilisation, state.busyCores / config.cpuCores);
   const meanMicros = call.request.operation === "read" ? state.meanReadMicros : state.meanWriteMicros;
-  const executionMicros =
-    config.queryTimeDistribution === "constant"
-      ? meanMicros
-      : Math.round(context.prng.nextExponential(meanMicros));
-  context.schedule(executionMicros, TIMER_QUERY_DONE, call);
+  context.useCpu(state.cpu, call, meanMicros, config.queryTimeDistribution, TIMER_QUERY_DONE);
 }
 
+/** The query has run; the kernel has already given its core to the next waiting query. */
 function finishExecution(context: DatabaseContext, call: Call): void {
-  const { state, config } = context;
-  state.busyCores--;
-  const next = dequeue(state.coreQueue);
-  if (next !== null) {
-    context.setGauge(state.cpuQueueDepth, queueLength(state.coreQueue));
-    startExecution(context, next);
-  } else {
-    context.setGauge(state.cpuUtilisation, state.busyCores / config.cpuCores);
-  }
-
+  const { state } = context;
   if (call.request.operation === "read") {
     context.count(state.reads);
   } else {
@@ -175,8 +150,6 @@ export const databaseComponent = defineComponent({
         utilisation: setup.metric(CAPACITY_METRIC_IDS.utilisation),
         queueDepth: setup.metric(CAPACITY_METRIC_IDS.queueDepth),
         connectionWait: setup.metric("connections.wait"),
-        cpuUtilisation: setup.metric("cpu.utilisation"),
-        cpuQueueDepth: setup.metric("cpu.queue-depth"),
         locksWaitingGauge: setup.metric("locks.waiting"),
         lockWait: setup.metric("locks.wait"),
         cacheHits: setup.metric("buffer-cache.hits"),
@@ -192,11 +165,13 @@ export const databaseComponent = defineComponent({
         meanReadMicros: millisecondsToMicros(config.readTimeMs),
         meanWriteMicros: millisecondsToMicros(config.writeTimeMs),
         connectionQueue: createCallQueue(),
-        coreQueue: createCallQueue(),
+        cpu: setup.cpu(config.cpuCores, {
+          utilisation: setup.metric("cpu.utilisation"),
+          queueDepth: setup.metric("cpu.queue-depth"),
+        }),
         locks: new Map(),
         cache: createBufferCache(config.rowsInMemory),
         connectionsInUse: 0,
-        busyCores: 0,
         locksWaiting: 0,
       };
     },
@@ -230,7 +205,7 @@ export const databaseComponent = defineComponent({
       if (timerKind === TIMER_QUERY_DONE) {
         finishExecution(context, call);
       } else if (timerKind === TIMER_DISK_READ_DONE) {
-        requestCore(context, call);
+        execute(context, call);
       } else if (timerKind === TIMER_CONNECTION_WAIT_EXPIRED) {
         removeFromQueue(state.connectionQueue, call);
         context.setGauge(state.queueDepth, queueLength(state.connectionQueue));

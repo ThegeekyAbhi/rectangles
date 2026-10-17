@@ -80,13 +80,13 @@ test("build a ten-node board, edit it, and find it unchanged after a reload", as
   // Configure a node: a valid value is kept, an invalid one is refused with a reason.
   await nodeNamed(page, "API server 2").click();
   const inspector = page.getByRole("complementary", { name: "Inspector" });
-  const instances = inspector.getByLabel("Instances");
-  await expect(instances).toHaveValue("2");
-  await instances.fill("6");
-  await instances.press("Enter");
-  await instances.fill("0");
-  await instances.press("Enter");
-  await expect(inspector.getByRole("alert")).toHaveText("Must be between 1 and 1000.");
+  const workers = inspector.getByLabel("Workers");
+  await expect(workers).toHaveValue("50");
+  await workers.fill("60");
+  await workers.press("Enter");
+  await workers.fill("0");
+  await workers.press("Enter");
+  await expect(inspector.getByRole("alert")).toHaveText("Must be between 1 and 1000000.");
 
   const name = inspector.getByLabel("Name");
   await name.fill("Checkout API");

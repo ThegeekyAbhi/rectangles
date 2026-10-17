@@ -2,6 +2,7 @@ import type { ConfigFields, ConfigOf } from "./config-field.ts";
 import type { MetricHandle } from "./metric.ts";
 import type { PortHandle } from "./port.ts";
 import type { Call, Operation, Outcome, Request } from "./request.ts";
+import type { CpuHandle, CpuMetrics, WorkDistribution } from "./resources.ts";
 import type { Micros } from "./time-units.ts";
 
 /** A deterministic random stream. Each node has its own, derived from the run seed. */
@@ -28,6 +29,11 @@ export interface SetupContext<Config> {
    * result; anything else throws.
    */
   connections<Fields extends ConfigFields>(port: PortHandle, fields: Fields): readonly ConfigOf<Fields>[];
+  /**
+   * Gives the component a pool of `cores` CPU cores, queued first come, first served.
+   * The kernel keeps the given gauges up to date.
+   */
+  cpu(cores: number, metrics: CpuMetrics): CpuHandle;
 }
 
 /**
@@ -53,6 +59,14 @@ export interface Context<Config, State> {
   ): TimerHandle;
   /** Cancels a timer. Does nothing if it has already fired. */
   cancel(timer: TimerHandle): void;
+
+  /**
+   * Runs a piece of work on one of the pool's cores, waiting for a free core first. Its
+   * length is drawn around `meanMicros` when it starts. Once it is done the core is freed,
+   * the oldest waiting work starts, and then this node's `onTimer` runs with `timerKind`
+   * and `call`. Work cannot be cancelled.
+   */
+  useCpu(cpu: CpuHandle, call: Call, meanMicros: Micros, distribution: WorkDistribution, timerKind: number): void;
 
   /** Starts a new request. Without an operation and key, it reads key 0. */
   createRequest(attempt: number, operation?: Operation, key?: number): Request;

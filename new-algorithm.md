@@ -32,13 +32,13 @@ File references are relative to `packages/engine/src/` and were checked on the d
 
 | # | Weakness | Where | Why it matters |
 | --- | --- | --- | --- |
-| W1 | **Connections are free.** Going past `cpuCores` only adds a wait in `coreQueue`. There is no memory per connection, no cost to open one, and no slowdown from many | `components/database/behaviour.ts` `requestCore` | A real Postgres backend uses about 5–10 MB of RAM and a fork plus auth to open, and throughput *falls* past the core count. PgBouncer exists to fix exactly this, and would show no effect |
-| W2 | **Service time ignores load.** Same mean at 10% and 99% busy | `api-server/behaviour.ts` `startService`, `database/behaviour.ts` `startExecution` | It is optimistic near saturation, the regime users come to study. There is no retrograde throughput (Universal Scalability Law) |
+| W1 | **Connections are free.** Going past `cpuCores` only adds a wait in the kernel's CPU pool. There is no memory per connection, no cost to open one, and no slowdown from many | `components/database/behaviour.ts` `execute` | A real Postgres backend uses about 5–10 MB of RAM and a fork plus auth to open, and throughput *falls* past the core count. PgBouncer exists to fix exactly this, and would show no effect |
+| W2 | **Service time ignores load.** Same mean at 10% and 99% busy | `kernel/resources/cpu-pool.ts` `start`, `api-server/behaviour.ts` `startOtherWait` | It is optimistic near saturation, the regime users come to study. There is no retrograde throughput (Universal Scalability Law) |
 | W3 | **RAM is not bytes.** The buffer cache counts rows. Nothing else holds memory | `database/buffer-cache.ts` | shared_buffers, connections × per-backend memory, work_mem and queue backlog never compete. No OOM, no swap |
 | W4 | **Disk is an infinitely parallel fixed delay** | `database/behaviour.ts` `TIMER_DISK_READ_DONE` | No IOPS or bandwidth limit and no queue. No WAL fsync or group commit. A miss storm costs nothing extra |
 | W5 | **Links are instant and have no bandwidth** (K3) | `kernel/call-router.ts` `send`, `reply` | No payload sizes or NIC limits. Rules out CDN, regions, "chatty I/O" |
 | W6 | **The workload is too uniform** | `components/client/` | Open-loop Poisson only, with no closed-loop users and no burstiness. Exponential or constant service times, no heavy tails. One key and one read/write flag, no query classes or sizes. Retries without jitter or budget |
-| W7 | **Instances are idealised** | `api-server/definition.ts` `notModeled` | All instances share one queue (M/M/c), which is better than per-instance queues behind an LB. No faults (K4): no crashes, GC pauses or slow nodes |
+| W7 | **Instances are idealised.** *Partly fixed:* one API server node is now one server with its own workers, CPU and queue; scaling out means copies behind a load balancer | `api-server/definition.ts` `notModeled` | No faults yet (K4): no crashes, GC pauses or slow nodes |
 | W8 | **Call lifetime defect** (K5) | `kernel/call-pool.ts` `release` | A record goes back to the pool while children still name it as `parent`. It breaks the first time a middle component answers early: a pooler timeout, a circuit breaker, a hedged request |
 | W9 | **Results look certain** | `metrics/` | One seed, one number. No confidence interval, no warm-up removal (the cache starts cold), no mark on assumed defaults. Percentiles keep every sample, so memory grows with traffic |
 | W10 | **Numbers cannot explain themselves** | `apps/web/src/modules/metrics/lib/capacity-state.ts` | Nothing records why a request was slow (queue, CPU, disk, lock, net) or what holds a resource. The PRD promises "every number is explainable" |
@@ -190,9 +190,9 @@ Result: *pending*, recorded here when the spike is done.
 | 0a | Analytic fast path (§9.2 T1): operational laws, Erlang C, MOL, shown before Run and used as a cross-check | `src/analysis/` (new), web `metrics` module |
 | 0b | Fluid spike (§7), checked against exact DES and T1 | `bench/fluid-spike/` |
 | 1 | K5: calls stay out of the pool while children are live; `call.isOpen` | `kernel/call-pool.ts`, `kernel/call-router.ts`, `contract/request.ts` |
-| 2 | Resource contract and kernel implementation (CPU, memory, disk), checked against theory | `contract/resources.ts`, `kernel/resources/` |
+| 2 | Resource contract and kernel implementation (CPU, memory, disk), checked against theory. **CPU landed:** `SetupContext.cpu` and `Context.useCpu`, a FIFO core pool used by the database and the API server. Memory and disk remain | `contract/resources.ts`, `kernel/resources/` |
 | 3 | Database on resources: memory, disk, connection cost, contention | `components/database/` |
-| 4 | api-server per-instance queues and its own pool. Request sizes and classes, closed-loop clients, retry jitter | `components/api-server/`, `components/client/`, `contract/request.ts` |
+| 4 | ~~api-server per-instance queues~~ (done: one node is one server, with Size, workers and CPU time). Its own connection pool. Request sizes and classes, closed-loop clients, retry jitter | `components/api-server/`, `components/client/`, `contract/request.ts` |
 | 5 | K3 link latency and bandwidth | `kernel/design-graph.ts`, `kernel/call-router.ts` |
 | 6 | PgBouncer | `components/pgbouncer/` |
 | 7 | Trust layer (§4) | `contract/config-field.ts`, web `simulation` and `metrics` modules |

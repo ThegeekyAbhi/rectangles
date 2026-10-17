@@ -104,7 +104,11 @@ export function trafficSegmentAt(pattern: TrafficPattern, seconds: number): Traf
         piece += 1;
         endSeconds = changeAtSeconds + ((piece + 1) * changeDurationSeconds) / RAMP_PIECES;
       }
-      if (piece >= RAMP_PIECES - 1) {
+      // The last piece, or one too short to represent (a ramp lasting a few denormal
+      // seconds), runs to the ramp's end, so every segment ends after `seconds` and the
+      // caller always moves on.
+      if (piece >= RAMP_PIECES - 1 || endSeconds <= seconds) {
+        piece = Math.min(piece, RAMP_PIECES - 1);
         endSeconds = changeEndSeconds;
       }
       const startSeconds = changeAtSeconds + (piece * changeDurationSeconds) / RAMP_PIECES;

@@ -47,12 +47,14 @@ interface CaptionProps {
 
 /**
  * A component's name and key settings, shown under its tile. A type this version does
- * not simulate shows its type id instead of settings.
+ * not simulate shows its type id instead; a known type whose settings cannot be used says
+ * so, rather than looking fine.
  */
 export function ComponentCaption({ componentType, label, config, className }: CaptionProps) {
   const definition = findComponentDefinition(componentType);
   const typeLabel = definition?.label ?? componentType;
   const summary = summariseConfig(componentType, config);
+  const needsFixing = definition !== undefined && summary === null;
   return (
     <div className={cn("w-44 text-center", className)}>
       <div data-slot="node-label" className="line-clamp-2 text-sm leading-5 font-medium">
@@ -61,9 +63,12 @@ export function ComponentCaption({ componentType, label, config, className }: Ca
       <div
         data-slot="node-summary"
         title={summary === null ? undefined : `${typeLabel}: ${summary}`}
-        className="truncate text-xs leading-4 text-muted-foreground tabular-nums"
+        className={cn(
+          "truncate text-xs leading-4 tabular-nums",
+          needsFixing ? "font-medium text-destructive" : "text-muted-foreground",
+        )}
       >
-        {summary ?? typeLabel}
+        {summary ?? (needsFixing ? "Settings need fixing" : typeLabel)}
       </div>
     </div>
   );

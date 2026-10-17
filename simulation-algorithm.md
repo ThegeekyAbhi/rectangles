@@ -1,6 +1,6 @@
 # Rectangles — Simulation Algorithm
 
-**Status:** Proposed · **Last updated:** 2026-10-14 · Companion to [PRD.md](PRD.md) and [MilestoneBased.md](MilestoneBased.md). Realism gaps and the scale plan continue in [new-algorithm.md](new-algorithm.md)
+**Status:** Proposed · **Last updated:** 2026-10-17 · Companion to [PRD.md](PRD.md) and [MilestoneBased.md](MilestoneBased.md). Realism gaps and the scale plan continue in [new-algorithm.md](new-algorithm.md)
 
 This document explains how the engine simulates a design, why that method was chosen, how far it
 will carry us as components are added, and what has to change in the kernel along the way.
@@ -11,7 +11,7 @@ numbers drift; the file names will not.
 ## 1. Short answer
 
 - **The algorithm is the right one. Keep it.** The engine is a next-event discrete-event
-  simulation: one clock, one time-ordered list of future events, three kinds of event. This is
+  simulation: one clock, one time-ordered list of future events, four kinds of event. This is
   the standard method for requests queueing through components. Network simulators, queueing
   simulators and the deterministic test simulators inside databases all use it.
 - **It will carry the planned components, but not unchanged.** Eight gaps (K1–K8, §7) stand
@@ -103,13 +103,14 @@ flowchart TD
   more --> peek
 ```
 
-There are only three kinds of event (`kernel/call-router.ts:13`):
+There are only four kinds of event (`kernel/call-router.ts`, `EVENT_*`):
 
 | Event | Meaning | Created by | Handler |
 | --- | --- | --- | --- |
 | `ARRIVE` | A call reaches a component | `context.send` | `onArrive` |
 | `REPLY` | An answer returns to the caller | `context.reply` | `onReply` |
 | `TIMER` | A component asked to be woken later | `context.schedule` | `onTimer` |
+| `CPU_DONE` | A piece of work on a CPU pool ended. The kernel frees the core and starts the next waiting work, then wakes the component | `context.useCpu` | `onTimer` |
 
 The event list is a binary min-heap ordered by time, then by the order events were added
 (`kernel/des/event-queue.ts`). The second key is what makes two events at the same microsecond
@@ -118,7 +119,8 @@ the loop allocates no memory per event.
 
 ### 2.4 One request, start to finish
 
-This is the path through `client` and `api-server` today. It takes exactly four events.
+This is the path through `client` and `api-server` today, with the default 2 ms of CPU time
+and 18 ms of other wait. It takes exactly five events.
 
 ```mermaid
 sequenceDiagram
@@ -133,17 +135,20 @@ sequenceDiagram
   C->>Q: schedule timeout at 5008 ms
   C->>Q: schedule the arrival after this one
   Q->>A: 2. ARRIVE
-  Note over A: A slot is free. Draw a service time of 20 ms
-  A->>Q: schedule service done at 28 ms
+  Note over A: A worker and a core are free. Draw a CPU time of 2 ms
+  A->>Q: CPU work done at 10 ms
+  Note over Q: clock jumps to 10 ms
+  Q->>A: 3. CPU_DONE: the core is freed. Draw an other wait of 18 ms
+  A->>Q: schedule wait done at 28 ms
   Note over Q: clock jumps to 28 ms
-  Q->>A: 3. TIMER service done
-  A->>Q: reply ok
-  Q->>C: 4. REPLY
+  Q->>A: 4. TIMER wait done
+  A->>Q: reply ok, free the worker
+  Q->>C: 5. REPLY
   Note over C: Cancel the timeout. Latency = 28 − 8 = 20 ms
 ```
 
 A real run confirms the count: `pnpm sim packages/engine/examples/client-api-server.json --seed 1`
-reports 59,956 requests and 239,778 events, which is 4.0 events per request. The cancelled
+reports 59,881 requests and 299,344 events, which is 5.0 events per request. The cancelled
 timeout never fires, so it is not counted.
 
 ### 2.5 Where the numbers come from
@@ -153,11 +158,11 @@ The kernel computes nothing about performance. Every metric is a by-product of t
 | Number | How it arises | Where |
 | --- | --- | --- |
 | Arrival times | Random gaps drawn so arrivals follow the traffic pattern | `components/client/behaviour.ts:113` |
-| Service time | The configured mean, or a random draw around it | `components/api-server/behaviour.ts:35` |
-| Queue wait | Clock when service starts, minus clock when the call arrived | `components/api-server/behaviour.ts:34` |
-| Utilisation | Busy slots ÷ total slots, updated whenever it changes | `components/api-server/behaviour.ts:33` |
-| Queue depth | Calls waiting, updated on every join and leave | `components/api-server/behaviour.ts:74` |
-| Rejections | A call arrives while the queue is at its limit | `components/api-server/behaviour.ts:68` |
+| CPU time, other wait | The configured mean, or a random draw around it | `kernel/resources/cpu-pool.ts` `start`, `components/api-server/behaviour.ts` `startOtherWait` |
+| Queue wait | Clock when a worker takes the call, minus clock when the call arrived | `components/api-server/behaviour.ts` `startWork` |
+| Utilisation | Busy workers ÷ workers, and busy cores ÷ vCPU, updated whenever they change | `components/api-server/behaviour.ts` `startWork`, `kernel/resources/cpu-pool.ts` |
+| Queue depth | Calls waiting for a worker or a core, updated on every join and leave | `components/api-server/behaviour.ts` `onArrive`, `kernel/resources/cpu-pool.ts` |
+| Rejections | A call arrives while the queue is at its limit | `components/api-server/behaviour.ts` `onArrive` |
 | End-to-end latency | Clock at the reply, minus clock when the call was sent | `components/client/behaviour.ts:74` |
 
 Components report these with `count`, `setGauge` and `sample`. The recorder stores them in
@@ -166,27 +171,27 @@ sample, not estimated (`metrics/sample-statistics.ts`).
 
 ### 2.6 Behaviour that emerges without being coded
 
-No line of code says "latency rises when the server is busy". It follows from slots, a queue
+No line of code says "latency rises when the server is busy". It follows from workers, cores, a queue
 and arrivals. The same is true of the behaviours the planned components need.
 
-**Backpressure.** A component that calls downstream keeps its slot until the answer returns.
-A slow database therefore fills the API server's slots, then its queue, then causes rejections.
+**Backpressure.** A component that calls downstream keeps its worker until the answer returns.
+A slow database therefore fills the API server's workers, then its queue, then causes rejections.
 
 ```mermaid
 sequenceDiagram
   participant C as Client
-  participant A as API server with 2 slots
+  participant A as API server with 2 workers
   participant D as Database (planned, M5)
   C->>A: request 1
   A->>D: query for request 1
-  Note over A: Slot 1 stays busy while it waits
+  Note over A: Worker 1 stays busy while it waits
   C->>A: request 2
   A->>D: query for request 2
   C->>A: request 3
-  Note over A: Both slots busy. Request 3 waits in the queue
+  Note over A: Both workers busy. Request 3 waits in the queue
   D-->>A: answer 1, after a slow 300 ms
   A-->>C: reply 1
-  Note over A: Slot 1 is free. Request 3 starts now
+  Note over A: Worker 1 is free. Request 3 starts now
 ```
 
 **Timeouts that do not free capacity.** When the client gives up, it only stops waiting
@@ -194,7 +199,7 @@ sequenceDiagram
 retry storms appear on their own.
 
 **Async.** A queue answers the publisher at once and does the work later. That is an ordinary
-call with an early reply, so no fourth event kind is needed.
+call with an early reply, so no new event kind is needed.
 
 ### 2.7 Why the results can be trusted
 
@@ -445,7 +450,7 @@ What this algorithm will not do, and where each case goes.
 
 | Case | Why | What we do |
 | --- | --- | --- |
-| CPU, memory, garbage collection, disk | These are inside the box. The engine models what a box does to a request, not why | Represented by service time and concurrency. Listed in `notModeled`. A "service time rises with load" setting can come later |
+| Memory, garbage collection, disk | These are inside the box. The engine models what a box does to a request, not why | CPU is now modelled as a kernel core pool (`kernel/resources/`); the rest is represented by the API server's other wait and listed in `notModeled`. Memory and disk follow (new-algorithm.md §3) |
 | TCP windows, packet loss, retransmission | Byte-level detail far below a request | Links get latency (K3) and, later, loss. Nothing finer |
 | Consensus and leader election | Expressible (they are messages and timers) but a large modelling effort per protocol | Later. Until then, failover is a timed switch |
 | What data is actually stored | We track that a key was written and which version, not its value | Staleness and hit rate are measurable; correctness of contents is not |

@@ -8,7 +8,7 @@ import {
 import { defaultConfigFor } from "@/modules/whiteboard/lib/component-catalog";
 
 const document: ProjectDocument = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   nodes: [
     {
       id: "client",
@@ -58,16 +58,16 @@ describe("document conversion", () => {
   });
 
   it("fills in defaults for fields a saved config lacks", () => {
-    const sparse = { ...document, nodes: [{ ...document.nodes[1]!, config: { instances: 4 } }], edges: [] };
+    const sparse = { ...document, nodes: [{ ...document.nodes[1]!, config: { workers: 4 } }], edges: [] };
     expect(documentToElements(sparse).nodes[0]?.data.config).toEqual({
       ...defaultConfigFor("api-server"),
-      instances: 4,
+      workers: 4,
     });
   });
 
   it("keeps an invalid saved config as it is, for the inspector to report", () => {
-    const invalid = { ...document, nodes: [{ ...document.nodes[1]!, config: { instances: -3 } }], edges: [] };
-    expect(documentToElements(invalid).nodes[0]?.data.config).toEqual({ instances: -3 });
+    const invalid = { ...document, nodes: [{ ...document.nodes[1]!, config: { workers: -3 } }], edges: [] };
+    expect(documentToElements(invalid).nodes[0]?.data.config).toEqual({ workers: -3 });
   });
 
   it("keeps nodes of a type the engine does not know", () => {

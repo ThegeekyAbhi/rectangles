@@ -4,6 +4,7 @@ import { createEventBudgetProjector, estimateEventBudget } from "../../src/kerne
 import { runSimulation } from "../../src/kernel/simulation.ts";
 import { registry } from "../../src/registry.ts";
 import { buildClientApiServerDesign } from "../support/client-api-server-design.ts";
+import { slotServer } from "../support/slot-server.ts";
 
 /** Client → load balancer → two API servers, with retries at both ends. */
 function buildLoadBalancedDesign(ratePerSecond: number, durationSeconds: number): SimulationDesign {
@@ -14,7 +15,7 @@ function buildLoadBalancedDesign(ratePerSecond: number, durationSeconds: number)
       { id: "client", type: "client", config: { ratePerSecond, retries: 1 } },
       { id: "lb", type: "load-balancer" },
       { id: "api-0", type: "api-server" },
-      { id: "api-1", type: "api-server", config: { serviceTimeMs: 60 } },
+      { id: "api-1", type: "api-server", config: slotServer({ workers: 100, holdMs: 60 }) },
     ],
     edges: [
       { id: "c", from: { node: "client", port: "out" }, to: { node: "lb", port: "in" } },

@@ -31,7 +31,7 @@ describe("buildDesignGraph", () => {
 
   it("applies config defaults", () => {
     const graph = buildDesignGraph(validDesign, registry);
-    expect(graph.nodes[1]?.config).toMatchObject({ instances: 2, concurrency: 50 });
+    expect(graph.nodes[1]?.config).toMatchObject({ size: "medium", workers: 50 });
   });
 
   it("rejects a document without nodes and edges", () => {
@@ -66,14 +66,14 @@ describe("buildDesignGraph", () => {
   });
 
   it("reports every invalid config field with its node", () => {
-    const design = buildClientApiServerDesign({ apiServer: { instances: 0, queueLimit: -1 } });
+    const design = buildClientApiServerDesign({ apiServer: { workers: 0, queueLimit: -1 } });
     try {
       buildDesignGraph(design, registry);
       expect.unreachable();
     } catch (error) {
       expect(error).toBeInstanceOf(DesignError);
       expect((error as DesignError).issues).toMatchObject([
-        { code: "invalid-config", nodeId: "api", field: "instances" },
+        { code: "invalid-config", nodeId: "api", field: "workers" },
         { code: "invalid-config", nodeId: "api", field: "queueLimit" },
       ]);
     }

@@ -11,8 +11,7 @@ describe("M/M/1: one server, 80% utilised", () => {
   const scenario = {
     arrivalsPerSecond: 4000,
     serviceTimeMs: 0.2,
-    instances: 1,
-    concurrency: 1,
+    servers: 1,
     queueLimit: 1_000_000,
     durationSeconds: 300,
   };

@@ -34,11 +34,22 @@ const Toaster = ({ ...props }: ToasterProps) => {
           "--normal-text": "var(--popover-foreground)",
           "--normal-border": "var(--border)",
           "--border-radius": "var(--radius)",
+          "--width": "320px",
         } as React.CSSProperties
       }
+      // Bottom centre stays clear of the canvas toolbar in the bottom-right corner.
+      position="bottom-center"
+      offset={24}
       toastOptions={{
         classNames: {
-          toast: "cn-toast",
+          // Compact, and not selectable: a toast is read at a glance, never copied.
+          toast: "cn-toast select-none !items-center !gap-2.5 !px-3 !py-2.5 !text-sm !shadow-md",
+          title: "!font-medium !leading-5",
+          description: "!text-xs !leading-4 !text-muted-foreground",
+          icon: "!text-muted-foreground",
+          error: "[&_[data-icon]]:!text-destructive",
+          actionButton:
+            "!h-7 !rounded-md !border !border-border !bg-transparent !px-2.5 !text-xs !font-medium !text-foreground hover:!bg-accent",
         },
       }}
       {...props}
